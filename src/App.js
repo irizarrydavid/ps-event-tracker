@@ -351,6 +351,7 @@ function GuidedTour({ steps, roleColor, onClose, currentNav, setNav, openAIKey, 
   const [usingAI, setUsingAI]     = useState(false);
   const audioRef  = useRef(null);   // for OpenAI audio playback
   const cacheRef  = useRef({});     // cache: text → objectURL
+  const pendingTextRef = useRef(""); // last spoken text for fallback
   const popoverRef = useRef(null);
 
   const step        = steps[stepIdx];
@@ -425,13 +426,19 @@ function GuidedTour({ steps, roleColor, onClose, currentNav, setNav, openAIKey, 
     audioRef.current.src = url;
     audioRef.current.onplay  = () => { setSpeaking(true); setUsingAI(true); };
     audioRef.current.onended = () => setSpeaking(false);
-    audioRef.current.onerror = () => { setSpeaking(false); setUsingAI(false); };
-    audioRef.current.play().catch(() => setSpeaking(false));
+    audioRef.current.onerror = () => { setSpeaking(false); setUsingAI(false); speakFallback(pendingTextRef.current || ""); };
+    audioRef.current.play().catch((err) => {
+      console.warn("Audio autoplay blocked:", err.message);
+      setSpeaking(false);
+      setUsingAI(false);
+      speakFallback(pendingTextRef.current || "");
+    });
   };
 
   const speak = (text) => {
     if (muted) return;
     stopAll();
+    pendingTextRef.current = text;
     speakOpenAI(text);
   };
 
