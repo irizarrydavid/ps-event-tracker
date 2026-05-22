@@ -17,6 +17,21 @@ const OFFICERS = [
   { id:7, name:"Lisa Chen",       badge:"PS-0550", rank:"Campus Security Assistant",tour:"Tour 3", daysOff:"Mon & Tue", email:"chen@cuny.edu",      phone:"718-555-0707", otHours:14 },
 ];
 
+// ── Rank permission helpers ──────────────────────────────────────────────────
+const RANK_LEVEL = {
+  "Campus Security Assistant": 0,
+  "CPO":                        1,
+  "Corporal":                   2,
+  "Sergeant":                   3,
+  "Specialist":                 4,
+  "Lieutenant":                 5,
+  "Director of Public Safety":  6,
+};
+
+const isSgtPlus      = (rank) => RANK_LEVEL[rank] >= 3;  // Sgt and above
+const isSpecialistPlus = (rank) => RANK_LEVEL[rank] >= 4; // Specialist and above
+const isLtPlus       = (rank) => RANK_LEVEL[rank] >= 5;  // Lt and above
+
 const EVENTS_SEED = [
   { id:1, title:"Spring Commencement",    date:"May 14",  time:"0600-1400", type:"COMMENCEMENT", slots:6, filled:4, hold:true,  status:"OPEN"   },
   { id:2, title:"Basketball Tournament",  date:"May 11",  time:"1000-2000", type:"ATHLETICS",    slots:4, filled:4, hold:false, status:"FULL"   },
@@ -806,6 +821,7 @@ function TopBar({ title, officer, menuOpen, setMenuOpen, nav, setNav, notifCount
           {[
             ["Dashboard","dashboard"],["Calendar","schedule"],
             ["Slot Release","slot-release"],["Cancel Requests","cancel-requests"],
+            ...(isSgtPlus(officer?.rank) ? [["Approvals Queue","approvals"]] : []),
             ["FAQ","faq"],["Settings","settings"],
           ].map(([label, target]) => (
             <div key={target} onClick={() => { setNav(target); setMenuOpen(false); }} style={{
@@ -827,7 +843,7 @@ function TopBar({ title, officer, menuOpen, setMenuOpen, nav, setNav, notifCount
 // ═══════════════════════════════════════════════════════════════════════════════
 // EVENT CARD
 // ═══════════════════════════════════════════════════════════════════════════════
-function EventCard({ event, signups, onSignup, onWaitlist, onCancel, queuePos }) {
+function EventCard({ event, signups, onSignup, onWaitlist, onCancel, onRequestCancel, isSgt, queuePos }) {
   const isSigned = signups.confirmed.includes(event.id);
   const isWaited = signups.waitlisted.includes(event.id);
   const isFull = event.filled >= event.slots && !isSigned && !isWaited;
@@ -920,10 +936,15 @@ function EventCard({ event, signups, onSignup, onWaitlist, onCancel, queuePos })
       {/* Action buttons */}
       <div style={{ display: "flex", gap: 8 }}>
         {isSigned && (
-          <button onClick={() => onCancel(event.id)} style={{
-            flex: 1, padding: "9px 0", borderRadius: 8, border: "1.5px solid #EF4444",
-            background: "#fff", color: "#EF4444", fontWeight: 700, fontSize: 13, cursor: "pointer",
-          }}>Cancel Signup</button>
+          isSgt
+            ? <button onClick={() => onCancel(event.id)} style={{
+                flex: 1, padding: "9px 0", borderRadius: 8, border: "1.5px solid #EF4444",
+                background: "#fff", color: "#EF4444", fontWeight: 700, fontSize: 13, cursor: "pointer",
+              }}>Cancel Signup</button>
+            : <button onClick={() => onRequestCancel && onRequestCancel(event.id, "Personal request", "cancel")} style={{
+                flex: 1, padding: "9px 0", borderRadius: 8, border: "1.5px solid #F59E0B",
+                background: "#fff", color: "#D97706", fontWeight: 700, fontSize: 13, cursor: "pointer",
+              }}>Request Cancel</button>
         )}
         {isWaited && (
           <button onClick={() => onCancel(event.id)} style={{
@@ -951,8 +972,9 @@ function EventCard({ event, signups, onSignup, onWaitlist, onCancel, queuePos })
 // ═══════════════════════════════════════════════════════════════════════════════
 // DASHBOARD VIEW
 // ═══════════════════════════════════════════════════════════════════════════════
-function Dashboard({ officer, signups, handleSignup, handleWaitlist, handleCancel, showToast, startTour, events }) {
+function Dashboard({ officer, signups, handleSignup, handleWaitlist, handleCancel, submitCancelRequest, isSgt, showToast, startTour, events }) {
   const [tab, setTab] = useState("all");
+  const [cancelModal, setCancelModal] = useState(null); // { eventId, type }
   const onSignup   = (id) => handleSignup(id);
   const onWaitlist = (id) => handleWaitlist(id);
 
@@ -1059,12 +1081,24 @@ function Dashboard({ officer, signups, handleSignup, handleWaitlist, handleCance
 
       {/* Event list */}
       {filtered.map((event) => (
-        <EventCard key={event.id} event={event} signups={signups} onSignup={onSignup} onWaitlist={onWaitlist} onCancel={handleCancel} queuePos={signups.getQueuePosition(event.id)} />
+        <EventCard key={event.id} event={event} signups={signups} onSignup={onSignup} onWaitlist={onWaitlist} onCancel={handleCancel} onRequestCancel={(id) => setCancelModal({ eventId: id, type: 'cancel' })} isSgt={isSgt} queuePos={signups.getQueuePosition(event.id)} />
       ))}
       {filtered.length === 0 && (
         <div style={{ textAlign: "center", padding: "40px 20px", color: "#94A3B8", fontSize: 14 }}>
           No events to show in this view.
         </div>
+      )}
+
+      {cancelModal && (
+        <CancelRequestModal
+          event={events.find(e => e.id === cancelModal.eventId)}
+          type={cancelModal.type}
+          onSubmit={(reason) => {
+            submitCancelRequest(cancelModal.eventId, reason, cancelModal.type);
+            setCancelModal(null);
+          }}
+          onClose={() => setCancelModal(null)}
+        />
       )}
     </div>
   );
@@ -1858,6 +1892,250 @@ function FirstLoginPrompt({ officer, onStartTour, onSkip }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CANCEL REQUEST MODAL
+// ═══════════════════════════════════════════════════════════════════════════════
+function CancelRequestModal({ event, onSubmit, onClose, type = "cancel" }) {
+  const [reason, setReason] = useState("");
+  const reasons = type === "cancel"
+    ? ["Family emergency", "Medical appointment", "Personal obligation", "Schedule conflict", "Other"]
+    : ["Medical appointment", "Schedule conflict", "Family emergency", "Other"];
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+      zIndex: 500, display: "flex", alignItems: "flex-end", justifyContent: "center",
+      fontFamily: "'DM Sans', system-ui, sans-serif",
+    }}>
+      <div style={{
+        background: "#fff", borderRadius: "16px 16px 0 0",
+        padding: "24px 20px 36px", width: "100%", maxWidth: 430,
+        boxShadow: "0 -8px 40px rgba(0,0,0,0.2)",
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#0F172A" }}>
+              {type === "cancel" ? "Request Cancellation" : "Request Slot Release"}
+            </div>
+            <div style={{ fontSize: 12, color: "#64748B", marginTop: 2 }}>{event?.title}</div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, color: "#94A3B8", cursor: "pointer" }}>✕</button>
+        </div>
+
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#64748B", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.8 }}>
+          Select a reason
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+          {reasons.map(r => (
+            <div key={r} onClick={() => setReason(r)} style={{
+              padding: "11px 14px", borderRadius: 8, cursor: "pointer",
+              border: reason === r ? "1.5px solid #1D4ED8" : "1px solid #E2E8F0",
+              background: reason === r ? "#EFF6FF" : "#F8FAFC",
+              fontSize: 14, fontWeight: reason === r ? 700 : 500,
+              color: reason === r ? "#1D4ED8" : "#374151",
+            }}>{r}</div>
+          ))}
+        </div>
+
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#64748B", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.8 }}>
+          Additional details (optional)
+        </div>
+        <textarea
+          value={reason === "Other" ? reason : ""}
+          onChange={e => setReason(e.target.value)}
+          placeholder="Add any additional details..."
+          style={{
+            width: "100%", padding: "10px 12px", borderRadius: 8,
+            border: "1px solid #E2E8F0", fontSize: 13, resize: "none",
+            height: 72, boxSizing: "border-box", marginBottom: 14,
+            fontFamily: "system-ui, sans-serif",
+          }}
+        />
+
+        <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, padding: "10px 12px", marginBottom: 14 }}>
+          <div style={{ fontSize: 12, color: "#92400E", fontWeight: 600 }}>
+            ⚠️ A Sergeant must approve this request before it takes effect. You remain assigned until approved.
+          </div>
+        </div>
+
+        <button
+          onClick={() => reason && onSubmit(reason)}
+          style={{
+            width: "100%", padding: "13px 0", borderRadius: 8, border: "none",
+            background: reason ? "#1D4ED8" : "#CBD5E1",
+            color: "#fff", fontWeight: 700, fontSize: 15, cursor: reason ? "pointer" : "default",
+          }}
+        >
+          Submit Request
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SERGEANT APPROVALS TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+function SgtApprovals({ cancelRequests, onApprove, onDeny, officer }) {
+  const [filter, setFilter] = useState("pending");
+
+  const filtered = cancelRequests.filter(r => filter === "all" ? true : r.status === filter);
+  const pendingCount = cancelRequests.filter(r => r.status === "pending").length;
+
+  const typeColors = {
+    cancel:       { bg: "#FEF2F2", border: "#FECACA", label: "CANCEL REQUEST",  color: "#DC2626" },
+    "slot-release": { bg: "#FFF7ED", border: "#FED7AA", label: "SLOT RELEASE",    color: "#EA580C" },
+  };
+
+  const statusColors = {
+    pending:  { bg: "#FFFBEB", color: "#D97706", label: "PENDING"  },
+    approved: { bg: "#F0FDF4", color: "#16A34A", label: "APPROVED" },
+    denied:   { bg: "#FEF2F2", color: "#DC2626", label: "DENIED"   },
+  };
+
+  const formatTime = (ts) => {
+    const diff = Date.now() - ts;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "Just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  };
+
+  return (
+    <div style={{ padding: "16px 14px", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: 1, textTransform: "uppercase", marginBottom: 2 }}>
+        SERGEANT PORTAL
+      </div>
+      <div style={{ fontSize: 24, fontWeight: 900, color: "#0F172A", marginBottom: 2 }}>
+        Approvals Queue
+      </div>
+      <div style={{ fontSize: 13, color: "#64748B", marginBottom: 16 }}>
+        Welcome, {officer.name.split(" ")[0]} · {cancelRequests.filter(r => r.status === "pending").length} pending
+      </div>
+
+      {/* Stats row */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
+        {[
+          { label: "PENDING",  count: cancelRequests.filter(r => r.status === "pending").length,  color: "#D97706", bg: "#FFFBEB" },
+          { label: "APPROVED", count: cancelRequests.filter(r => r.status === "approved").length, color: "#16A34A", bg: "#F0FDF4" },
+          { label: "DENIED",   count: cancelRequests.filter(r => r.status === "denied").length,   color: "#DC2626", bg: "#FEF2F2" },
+        ].map(s => (
+          <div key={s.label} style={{ background: s.bg, borderRadius: 10, padding: "10px 8px", textAlign: "center" }}>
+            <div style={{ fontSize: 22, fontWeight: 900, color: s.color }}>{s.count}</div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: s.color, letterSpacing: 0.8 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filter tabs */}
+      <div style={{ display: "flex", gap: 0, borderBottom: "2px solid #E2E8F0", marginBottom: 14 }}>
+        {[["Pending","pending"],["Approved","approved"],["All","all"]].map(([label, value]) => (
+          <button key={value} onClick={() => setFilter(value)} style={{
+            flex: 1, padding: "9px 0", border: "none", background: "none",
+            fontWeight: 700, fontSize: 13, cursor: "pointer",
+            color: filter === value ? "#1D4ED8" : "#94A3B8",
+            borderBottom: filter === value ? "2px solid #1D4ED8" : "2px solid transparent",
+            marginBottom: -2,
+          }}>
+            {label} {value === "pending" && pendingCount > 0 && (
+              <span style={{ background: "#EF4444", color: "#fff", borderRadius: 99, padding: "1px 6px", fontSize: 10, marginLeft: 4 }}>{pendingCount}</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Request cards */}
+      {filtered.length === 0 && (
+        <div style={{ textAlign: "center", padding: "40px 20px", color: "#94A3B8", fontSize: 14 }}>
+          {filter === "pending" ? "No pending requests 🎉" : "No requests to show"}
+        </div>
+      )}
+
+      {filtered.map(req => {
+        const tc = typeColors[req.type] || typeColors.cancel;
+        const sc = statusColors[req.status] || statusColors.pending;
+        return (
+          <div key={req.id} style={{
+            background: "#fff", borderRadius: 12, padding: 14,
+            border: "1px solid #E2E8F0", marginBottom: 10,
+            boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+          }}>
+            {/* Header row */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <span style={{
+                  fontSize: 9, fontWeight: 800, letterSpacing: 0.8,
+                  background: tc.bg, color: tc.color, border: `1px solid ${tc.border}`,
+                  padding: "3px 7px", borderRadius: 4,
+                }}>{tc.label}</span>
+                <span style={{
+                  fontSize: 9, fontWeight: 700,
+                  background: sc.bg, color: sc.color,
+                  padding: "3px 7px", borderRadius: 4,
+                }}>{sc.label}</span>
+              </div>
+              <span style={{ fontSize: 11, color: "#94A3B8" }}>{formatTime(req.submittedAt)}</span>
+            </div>
+
+            {/* Officer info */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: "50%", background: "#1D4ED8",
+                color: "#fff", fontWeight: 800, fontSize: 13, flexShrink: 0,
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                {req.officerName.split(" ").map(n => n[0]).join("")}
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: "#0F172A" }}>{req.officerName}</div>
+                <div style={{ fontSize: 12, color: "#64748B" }}>{req.badge} · {req.eventTitle}</div>
+              </div>
+            </div>
+
+            {/* Reason */}
+            <div style={{
+              background: "#F8FAFC", borderRadius: 8, padding: "8px 10px",
+              fontSize: 13, color: "#475569", marginBottom: req.status === "pending" ? 10 : 0,
+              borderLeft: "3px solid #E2E8F0",
+            }}>
+              <span style={{ fontWeight: 700, color: "#64748B" }}>Reason: </span>{req.reason}
+            </div>
+
+            {/* Action buttons — only for pending */}
+            {req.status === "pending" && (
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => onApprove(req.id)} style={{
+                  flex: 1, padding: "10px 0", borderRadius: 8, border: "none",
+                  background: "#16A34A", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer",
+                }}>✓ Approve</button>
+                <button onClick={() => onDeny(req.id)} style={{
+                  flex: 1, padding: "10px 0", borderRadius: 8,
+                  border: "1.5px solid #DC2626", background: "#fff",
+                  color: "#DC2626", fontWeight: 700, fontSize: 13, cursor: "pointer",
+                }}>✕ Deny</button>
+              </div>
+            )}
+
+            {/* Approved note */}
+            {req.status === "approved" && (
+              <div style={{ fontSize: 12, color: "#16A34A", fontWeight: 600, marginTop: 6 }}>
+                ✓ Approved — waitlist auto-promoted
+              </div>
+            )}
+            {req.status === "denied" && (
+              <div style={{ fontSize: 12, color: "#DC2626", fontWeight: 600, marginTop: 6 }}>
+                ✕ Denied — officer remains assigned
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // ROOT APP
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function App() {
@@ -1872,8 +2150,66 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast]       = useState(null);
   const [tourState, setTourState] = useState(null);
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [openAIKey, setOpenAIKey] = useState("");
+  const [notifOpen, setNotifOpen]   = useState(false);
+  const [openAIKey, setOpenAIKey]   = useState("");
+
+  // ── Cancel requests & slot releases pending approval ─────────────────────
+  const [cancelRequests, setCancelRequests] = useState([
+    { id:1, officerId:1, officerName:"James Carter", badge:"PS-0412", eventId:1, eventTitle:"Spring Commencement", reason:"Family emergency", submittedAt: Date.now() - 3600000, type:"cancel", status:"pending" },
+    { id:2, officerId:7, officerName:"Lisa Chen",    badge:"PS-0550", eventId:3, eventTitle:"Alumni Gala",          reason:"Medical appointment", submittedAt: Date.now() - 7200000, type:"slot-release", status:"pending" },
+  ]);
+
+  const submitCancelRequest = (eventId, reason, type = "cancel") => {
+    const ev = events.find(e => e.id === eventId);
+    if (!ev || !officer) return;
+    const req = {
+      id: Date.now(),
+      officerId: officer.id,
+      officerName: officer.name,
+      badge: officer.badge,
+      eventId,
+      eventTitle: ev.title,
+      reason,
+      submittedAt: Date.now(),
+      type,
+      status: "pending",
+    };
+    setCancelRequests(prev => [...prev, req]);
+    addNotif(`Your ${type === "cancel" ? "cancel request" : "slot release"} for ${ev.title} has been submitted for approval.`, "info");
+    showToast("Request submitted — pending supervisor approval.", "info");
+  };
+
+  const approveCancelRequest = (reqId) => {
+    const req = cancelRequests.find(r => r.id === reqId);
+    if (!req) return;
+    setCancelRequests(prev => prev.map(r => r.id === reqId ? { ...r, status: "approved" } : r));
+    // Remove from confirmed
+    setConfirmed(prev => prev.filter(c => !(c.eventId === req.eventId && req.officerId === officer?.id)));
+    // Promote next in waitlist by timestamp
+    const ev = events.find(e => e.id === req.eventId);
+    if (ev) {
+      const sorted = [...ev.waitQueue].sort((a, b) => a.joinedAt - b.joinedAt);
+      if (sorted.length > 0) {
+        const promoted = sorted[0];
+        const remaining = sorted.slice(1);
+        setEvents(prev => prev.map(e => e.id === req.eventId ? { ...e, waitQueue: remaining } : e));
+        setConfirmed(prev => [...prev, { eventId: req.eventId, signedAt: Date.now() }]);
+        addNotif(`Slot approved: ${req.officerName}'s cancellation approved. Next officer in queue has been confirmed for ${req.eventTitle}.`, "success");
+      } else {
+        setEvents(prev => prev.map(e => e.id === req.eventId ? { ...e, filled: Math.max(0, e.filled - 1) } : e));
+        addNotif(`${req.officerName}'s cancellation approved for ${req.eventTitle}. No officers in waitlist — slot is now open.`, "info");
+      }
+    }
+    showToast(`Request approved. Waitlist updated automatically.`, "success");
+  };
+
+  const denyCancelRequest = (reqId) => {
+    const req = cancelRequests.find(r => r.id === reqId);
+    if (!req) return;
+    setCancelRequests(prev => prev.map(r => r.id === reqId ? { ...r, status: "denied" } : r));
+    addNotif(`Cancel request for ${req?.eventTitle} has been denied.`, "warn");
+    showToast("Request denied.", "warn");
+  };
   // ── Events state (mutable slots + waitQueues) ────────────────────────────
   const [events, setEvents] = useState(
     EVENTS_SEED.map(e => ({ ...e, waitQueue: [] }))
@@ -1897,7 +2233,8 @@ export default function App() {
     ]);
   };
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const pendingApprovals = cancelRequests.filter(r => r.status === "pending").length;
+  const unreadCount = notifications.filter(n => !n.read).length + (isSgtPlus(officer?.rank) ? pendingApprovals : 0);
   const markAllRead = () => setNotifications(prev => prev.map(n => ({ ...n, read: true })));
 
   const showToast = (msg, type = "info") => setToast({ msg, type });
@@ -2017,6 +2354,7 @@ export default function App() {
   const navTitles = {
     dashboard: "Dashboard", schedule: "Calendar", "slot-release": "Slot Release",
     "cancel-requests": "Cancel Requests", faq: "FAQ", settings: "Settings", profile: "My Profile",
+    approvals: "Approvals Queue",
   };
 
   const activeTour = tourState && tourState.roleKey ? TOURS[tourState.roleKey] : null;
@@ -2056,10 +2394,11 @@ export default function App() {
         />
       )}
 
-      {nav === "dashboard"       && <Dashboard officer={officer} signups={signups} handleSignup={handleSignup} handleWaitlist={handleWaitlist} handleCancel={handleCancel} showToast={showToast} startTour={startTour} events={events} />}
+      {nav === "dashboard"       && <Dashboard officer={officer} signups={signups} handleSignup={handleSignup} handleWaitlist={handleWaitlist} handleCancel={handleCancel} submitCancelRequest={submitCancelRequest} isSgt={isSgtPlus(officer?.rank)} showToast={showToast} startTour={startTour} events={events} />}
       {nav === "schedule"        && <Schedule signups={signups} />}
       {nav === "slot-release"    && <SlotRelease showToast={showToast} />}
       {nav === "cancel-requests" && <CancelRequests />}
+      {nav === "approvals"         && <SgtApprovals cancelRequests={cancelRequests} onApprove={approveCancelRequest} onDeny={denyCancelRequest} officer={officer} />}
       {nav === "faq"             && <FAQ />}
       {nav === "profile"         && <Profile officer={officer} />}
       {nav === "settings"        && <Settings startTour={startTour} officer={officer} openAIKey={openAIKey} setOpenAIKey={setOpenAIKey} />}
