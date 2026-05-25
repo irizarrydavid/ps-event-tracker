@@ -32,14 +32,16 @@ const isSgtPlus      = (rank) => RANK_LEVEL[rank] >= 3;  // Sgt and above
 const isSpecialistPlus = (rank) => RANK_LEVEL[rank] >= 4; // Specialist and above
 const isLtPlus       = (rank) => RANK_LEVEL[rank] >= 5;  // Lt and above
 
+const GRACE_PERIOD_MS = 72 * 60 * 60 * 1000; // 72 hours in milliseconds
+
 const EVENTS_SEED = [
-  { id:1, title:"Spring Commencement",    date:"May 14",  time:"0600-1400", type:"COMMENCEMENT", slots:6, filled:4, hold:true,  status:"OPEN"   },
-  { id:2, title:"Basketball Tournament",  date:"May 11",  time:"1000-2000", type:"ATHLETICS",    slots:4, filled:4, hold:false, status:"FULL"   },
-  { id:3, title:"Alumni Gala",            date:"May 18",  time:"1800-2300", type:"SPECIAL",      slots:3, filled:1, hold:false, status:"OPEN"   },
-  { id:4, title:"Fire Watch - 17NLex",    date:"May 9",   time:"0000-0800", type:"FIRE WATCH",   slots:2, filled:2, hold:false, status:"ACTIVE" },
-  { id:5, title:"New Student Orientation",date:"May 21",  time:"0800-1600", type:"STUDENT LIFE", slots:5, filled:2, hold:false, status:"OPEN"   },
-  { id:6, title:"Board of Trustees Mtg",  date:"May 27",  time:"0900-1700", type:"SPECIAL",      slots:3, filled:0, hold:false, status:"OPEN"   },
-  { id:7, title:"Friday Evening Patrol",  date:"May 15",  time:"1600-0000", type:"PATROL",       slots:4, filled:3, hold:false, status:"OPEN"   },
+  { id:1, title:"Spring Commencement",    date:"May 14",  time:"0600-1400", type:"COMMENCEMENT", slots:6, filled:4, hold:false, status:"OPEN",   postedAt: Date.now() - (80 * 60 * 60 * 1000) }, // posted 80h ago — grace elapsed
+  { id:2, title:"Basketball Tournament",  date:"May 11",  time:"1000-2000", type:"ATHLETICS",    slots:4, filled:4, hold:false, status:"FULL",   postedAt: Date.now() - (90 * 60 * 60 * 1000) }, // posted 90h ago — grace elapsed
+  { id:3, title:"Alumni Gala",            date:"May 18",  time:"1800-2300", type:"SPECIAL",      slots:3, filled:1, hold:false, status:"OPEN",   postedAt: Date.now() - (75 * 60 * 60 * 1000) }, // posted 75h ago — grace elapsed
+  { id:4, title:"Fire Watch - 17NLex",    date:"May 9",   time:"0000-0800", type:"FIRE WATCH",   slots:2, filled:2, hold:false, status:"ACTIVE", postedAt: Date.now() - (48 * 60 * 60 * 1000) }, // posted 48h ago — grace active
+  { id:5, title:"New Student Orientation",date:"May 21",  time:"0800-1600", type:"STUDENT LIFE", slots:5, filled:2, hold:false, status:"OPEN",   postedAt: Date.now() - (24 * 60 * 60 * 1000) }, // posted 24h ago — grace active
+  { id:6, title:"Board of Trustees Mtg",  date:"May 27",  time:"0900-1700", type:"SPECIAL",      slots:3, filled:0, hold:false, status:"OPEN",   postedAt: Date.now() - (12 * 60 * 60 * 1000) }, // posted 12h ago — grace active
+  { id:7, title:"Friday Evening Patrol",  date:"May 15",  time:"1600-0000", type:"PATROL",       slots:4, filled:3, hold:false, status:"OPEN",   postedAt: Date.now() - (6  * 60 * 60 * 1000) }, // posted 6h ago  — grace active
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -102,9 +104,9 @@ const TOURS = {
       },
       {
         id: "72h-hold",
-        title: "⚠️ The 72-Hour Hold Rule",
-        body: "Events marked '72h Hold' will lock your account for 72 hours once approved. You CANNOT sign up for another event during this period without a supervisor override. This is department policy.",
-        target: "hold-badge", position: "bottom",
+        title: "⏱ The 72-Hour Grace Period",
+        body: "When an event is posted, a 72-hour grace period begins. During this window, each officer may only sign up for one slot — giving everyone equal opportunity. After 72 hours, officers may sign up for additional events.",
+        target: null, position: "center",
         nextLabel: "Understood",
         confirmRequired: true,
       },
@@ -843,7 +845,7 @@ function TopBar({ title, officer, menuOpen, setMenuOpen, nav, setNav, notifCount
 // ═══════════════════════════════════════════════════════════════════════════════
 // EVENT CARD
 // ═══════════════════════════════════════════════════════════════════════════════
-function EventCard({ event, signups, onSignup, onWaitlist, onCancel, onRequestCancel, isSgt, queuePos }) {
+function EventCard({ event, signups, onSignup, onWaitlist, onCancel, onRequestCancel, isSgt, queuePos, graceLocked, graceTimeLeft }) {
   const isSigned = signups.confirmed.includes(event.id);
   const isWaited = signups.waitlisted.includes(event.id);
   const isFull = event.filled >= event.slots && !isSigned && !isWaited;
@@ -880,12 +882,13 @@ function EventCard({ event, signups, onSignup, onWaitlist, onCancel, onRequestCa
             fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
             background: tc + "18", color: tc, padding: "3px 7px", borderRadius: 4,
           }}>{event.type}</span>
-          {event.hold && (
-            <span id={isTargetCard ? "hold-badge" : undefined} style={{
+
+          {graceTimeLeft && (
+            <span style={{
               fontSize: 10, fontWeight: 700,
-              background: "#FFFBEB", color: "#D97706", border: "1px solid #FDE68A",
+              background: "#F0F9FF", color: "#0369A1", border: "1px solid #BAE6FD",
               padding: "3px 7px", borderRadius: 4,
-            }}>72h Hold</span>
+            }}>⏱ Grace: {graceTimeLeft}</span>
           )}
         </div>
         {/* Status badge */}
@@ -916,6 +919,11 @@ function EventCard({ event, signups, onSignup, onWaitlist, onCancel, onRequestCa
       </div>
       <div style={{ fontSize: 12, color: "#64748B", marginBottom: 10 }}>
         {event.date} · {event.time}
+        {event.postedAt && (
+          <span style={{ marginLeft: 6, color: "#94A3B8" }}>
+            · Posted {Math.floor((Date.now() - event.postedAt) / 3600000)}h ago
+          </span>
+        )}
       </div>
 
       {/* Slot bar */}
@@ -953,10 +961,16 @@ function EventCard({ event, signups, onSignup, onWaitlist, onCancel, onRequestCa
           }}>Leave Queue</button>
         )}
         {!isSigned && !isWaited && !isFull && (
-          <button onClick={() => onSignup(event.id)} style={{
-            flex: 1, padding: "9px 0", borderRadius: 8, border: "none",
-            background: "#1D4ED8", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer",
-          }}>Sign Up</button>
+          graceLocked
+            ? <button disabled style={{
+                flex: 1, padding: "9px 0", borderRadius: 8,
+                border: "1.5px solid #CBD5E1", background: "#F8FAFC",
+                color: "#94A3B8", fontWeight: 700, fontSize: 12, cursor: "not-allowed",
+              }}>🔒 Grace Period Active</button>
+            : <button onClick={() => onSignup(event.id)} style={{
+                flex: 1, padding: "9px 0", borderRadius: 8, border: "none",
+                background: "#1D4ED8", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer",
+              }}>Sign Up</button>
         )}
         {!isSigned && !isWaited && isFull && (
           <button onClick={() => onWaitlist(event.id)} style={{
@@ -1082,7 +1096,7 @@ function Dashboard({ officer, signups, handleSignup, handleWaitlist, handleCance
 
       {/* Event list */}
       {filtered.map((event) => (
-        <EventCard key={event.id} event={event} signups={signups} onSignup={onSignup} onWaitlist={onWaitlist} onCancel={handleCancel} onRequestCancel={(id) => setCancelModal({ eventId: id, type: 'cancel' })} isSgt={isSgt} queuePos={signups.getQueuePosition(event.id)} />
+        <EventCard key={event.id} event={event} signups={signups} onSignup={onSignup} onWaitlist={onWaitlist} onCancel={handleCancel} onRequestCancel={(id) => setCancelModal({ eventId: id, type: 'cancel' })} isSgt={isSgt} queuePos={signups.getQueuePosition(event.id)} graceLocked={signups.gracePeriodBlocksSignup(event)} graceTimeLeft={signups.getGraceTimeLeft(event)} />
       ))}
       {filtered.length === 0 && (
         <div style={{ textAlign: "center", padding: "40px 20px", color: "#94A3B8", fontSize: 14 }}>
@@ -1250,7 +1264,7 @@ function CancelRequests() {
 
 function FAQ() {
   const categories = [
-    { icon: "⏱", title: "72-Hour Hold", count: 5 },
+    
     { icon: "📱", title: "App & Account", count: 6 },
     { icon: "🔄", title: "Cancel Requests & Slot Release", count: 5 },
     { icon: "🔥", title: "Fire Watch", count: 5 },
@@ -1958,13 +1972,7 @@ function SignupConfirmModal({ event, officer, onConfirm, onClose }) {
               fontSize: 10, fontWeight: 800, letterSpacing: 0.5,
               background: tc + "18", color: tc, padding: "3px 8px", borderRadius: 4,
             }}>{event.type}</span>
-            {event.hold && (
-              <span style={{
-                fontSize: 10, fontWeight: 700,
-                background: "#FFFBEB", color: "#D97706", border: "1px solid #FDE68A",
-                padding: "3px 8px", borderRadius: 4,
-              }}>72h Hold</span>
-            )}
+            
           </div>
 
           {/* Event info rows */}
@@ -2006,14 +2014,14 @@ function SignupConfirmModal({ event, officer, onConfirm, onClose }) {
           </span>
         </div>
 
-        {/* 72h hold warning */}
-        {event.hold && (
+        {/* Grace period notice */}
+        {event.postedAt && (Date.now() - event.postedAt) < GRACE_PERIOD_MS && (
           <div style={{
-            background: "#FFFBEB", border: "1px solid #FDE68A",
-            borderRadius: 8, padding: "10px 12px", marginBottom: 16,
+            background: "#F0F9FF", border: "1px solid #BAE6FD",
+            borderRadius: 8, padding: "10px 12px", marginBottom: 12,
           }}>
-            <div style={{ fontSize: 12, color: "#92400E", fontWeight: 600, lineHeight: 1.5 }}>
-              ⚠️ <b>72-Hour Hold:</b> Signing up for this event will place a 72-hour hold on your account. You will not be able to sign up for another event during this period without supervisor approval.
+            <div style={{ fontSize: 12, color: "#0369A1", fontWeight: 600, lineHeight: 1.5 }}>
+              ⏱ <b>72-Hour Grace Period:</b> This event is within its grace window. Per department policy (Rodney Memo), you may only hold one sign-up during this period.
             </div>
           </div>
         )}
@@ -2286,6 +2294,716 @@ function SgtApprovals({ cancelRequests, onApprove, onDeny, officer }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// SUPERVISOR DASHBOARD
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const SIGNABLE_RANKS = ["Campus Security Assistant","CPO","Corporal","Sergeant","Specialist"];
+const RANK_ORDER = { "Campus Security Assistant":0,"CPO":1,"Corporal":2,"Sergeant":3,"Specialist":4,"Lieutenant":5,"Director of Public Safety":6 };
+const LOCATIONS = [
+  { building: "Subotnick Financial Services Center (151 E 25th St)", spaces: [
+    "Development Classroom - Computer Lab",
+    "Seminar Room - Classroom",
+    "Auxiliary Gym",
+    "Trading Floor",
+  ]},
+  { building: "Zicklin Executive Programs (55 Lexington Ave)", spaces: [
+    "Room 14-250",
+  ]},
+  { building: "Student Life (55 Lexington Ave)", spaces: [
+    "Multi-Purpose Room 1-107",
+    "Multi-Purpose Room 1-108",
+    "Multi-Purpose Room 1-109",
+  ]},
+  { building: "Athletics (55 Lexington Ave)", spaces: [
+    "Main Gym",
+    "Auxiliary Gym",
+    "Pool",
+    "Racquetball",
+  ]},
+  { building: "135 E. 22nd Street", spaces: [
+    "Room 301",
+    "Room 308",
+    "Eli and Claire Mason Seminar Room",
+  ]},
+  { building: "Baruch Performing Arts Center (55 Lexington Ave)", spaces: [
+    "Nagelberg Theatre",
+    "Engleman Recital Hall",
+    "Dance Studio",
+  ]},
+  { building: "Lawrence and Eris Field Building (17 Lexington Ave)", spaces: [
+    "Mason Hall - Orchestra",
+    "Mason Hall - Orchestra & Balcony",
+    "Bernie West Theatre",
+    "Skylight Room",
+  ]},
+];
+const EVENT_TYPES_POST = ["COMMENCEMENT","ATHLETICS","SPECIAL","FIRE WATCH","STUDENT LIFE","PATROL","BPAC","OTHER"];
+
+function SupervisorDashboard({ officer, events, setEvents, confirmed, setConfirmed, notifications, addNotif, showToast, sendEmail, sendEmailToAll, cancelRequests, approveCancelRequest, denyCancelRequest, postEvent, rescheduleEvent }) {
+  const [tab, setTab] = useState("events");
+  const [showPostForm, setShowPostForm] = useState(false);
+  const [showFireWatchForm, setShowFireWatchForm] = useState(false);
+  const [auditLog, setAuditLog] = useState([
+    { id:1, actor:"Dev Mehta", action:"Posted Spring Commencement", timestamp: Date.now()-86400000*2 },
+    { id:2, actor:"Sandra Williams", action:"Approved cancel request — James Carter", timestamp: Date.now()-3600000*5 },
+    { id:3, actor:"Marcus Brown", action:"Override issued — Lisa Chen — Alumni Gala", timestamp: Date.now()-3600000*2 },
+  ]);
+
+  const canOverride = RANK_ORDER[officer.rank] >= 5;
+  const canPostFireWatch = [2,4,5,6].includes(RANK_ORDER[officer.rank]);
+
+  const logAction = (action) => {
+    setAuditLog(prev => [{ id: Date.now(), actor: officer.name, action, timestamp: Date.now() }, ...prev]);
+  };
+
+  const formatTime = (ts) => {
+    const diff = Date.now() - ts;
+    const mins = Math.floor(diff/60000);
+    if (mins < 1) return "Just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins/60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs/24)}d ago`;
+  };
+
+  const tabs = [
+    ["events",   "All Events"],
+    ["waitlist", "Waitlist"],
+    ["approvals","Approvals"],
+    ["reports",  "Reports"],
+    ...(canOverride ? [["overrides","Overrides"]] : []),
+  ];
+
+  const pendingCount = cancelRequests.filter(r => r.status === "pending").length;
+
+  return (
+    <div style={{ padding:"16px 14px", fontFamily:"'DM Sans', system-ui, sans-serif" }}>
+      {/* Header */}
+      <div style={{ fontSize:11, fontWeight:700, color:"#94A3B8", letterSpacing:1, textTransform:"uppercase", marginBottom:2 }}>SUPERVISOR PORTAL</div>
+      <div style={{ fontSize:22, fontWeight:900, color:"#0F172A", marginBottom:2 }}>Admin Dashboard</div>
+      <div style={{ fontSize:13, color:"#64748B", marginBottom:16 }}>
+        {officer.name} · {officer.rank}
+      </div>
+
+      {/* Post buttons */}
+      <div style={{ display:"flex", gap:10, marginBottom:16, flexWrap:"wrap" }}>
+        <button onClick={() => { setShowPostForm(s => !s); setShowFireWatchForm(false); }} style={{
+          flex:1, padding:"11px 0", borderRadius:8, border:"none",
+          background: showPostForm ? "#1D4ED8" : "#1D4ED8",
+          color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer",
+        }}>+ Post New Event</button>
+        {canPostFireWatch && (
+          <button onClick={() => { setShowFireWatchForm(s => !s); setShowPostForm(false); }} style={{
+            flex:1, padding:"11px 0", borderRadius:8, border:"none",
+            background: showFireWatchForm ? "#DC2626" : "#DC2626",
+            color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer",
+          }}>+ Post Fire Watch</button>
+        )}
+      </div>
+
+      {/* Post Event Form */}
+      {showPostForm && <PostEventForm officer={officer} onPost={(evArray) => {
+        evArray.forEach(ev => postEvent(ev));
+        logAction(`Posted ${evArray.length} event${evArray.length > 1 ? "s" : ""}: ${evArray.map(e => e.title).join(", ")}`);
+        setShowPostForm(false);
+        showToast(`${evArray.length} event${evArray.length > 1 ? "s" : ""} posted! Officers notified.`, "success");
+      }} onClose={() => setShowPostForm(false)} />}
+
+      {/* Fire Watch Form */}
+      {showFireWatchForm && <FireWatchForm officer={officer} onPost={(shifts) => { shifts.forEach(s => postEvent(s)); logAction(`Posted Fire Watch: ${shifts.length} shifts`); setShowFireWatchForm(false); showToast(`${shifts.length} Fire Watch shifts posted!`, "success"); }} onClose={() => setShowFireWatchForm(false)} />}
+
+      {/* Tabs */}
+      <div style={{ display:"flex", gap:0, borderBottom:"2px solid #E2E8F0", marginBottom:14 }}>
+        {tabs.map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id)} style={{
+            flex:1, padding:"9px 0", border:"none", background:"none",
+            fontWeight:700, fontSize:11, cursor:"pointer",
+            color: tab===id ? "#1D4ED8" : "#94A3B8",
+            borderBottom: tab===id ? "2px solid #1D4ED8" : "2px solid transparent",
+            marginBottom:-2, position:"relative",
+          }}>
+            {label}
+            {id==="approvals" && pendingCount > 0 && (
+              <span style={{ background:"#EF4444", color:"#fff", borderRadius:99, padding:"1px 5px", fontSize:9, fontWeight:800, marginLeft:4 }}>{pendingCount}</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* All Events Tab */}
+      {tab === "events" && (
+        <div>
+          {events.map(ev => {
+            const graceActive = ev.postedAt && (Date.now() - ev.postedAt) < GRACE_PERIOD_MS;
+            const graceHrs = graceActive ? Math.ceil((GRACE_PERIOD_MS - (Date.now() - ev.postedAt)) / 3600000) : 0;
+            return (
+              <div key={ev.id} style={{ background:"#fff", borderRadius:10, padding:14, border:"1px solid #E2E8F0", marginBottom:10, boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
+                  <div>
+                    <div style={{ fontWeight:800, fontSize:14, color:"#0F172A" }}>{ev.title}</div>
+                    <div style={{ fontSize:12, color:"#64748B", marginTop:2 }}>{ev.date} · {ev.time} · {ev.type}</div>
+                  </div>
+                  <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
+                    <span style={{ fontSize:11, fontWeight:700, color: ev.filled >= ev.slots ? "#10B981" : "#1D4ED8", background: ev.filled >= ev.slots ? "#D1FAE5" : "#DBEAFE", padding:"3px 8px", borderRadius:4 }}>
+                      {ev.filled}/{ev.slots} filled
+                    </span>
+                    {graceActive && (
+                      <span style={{ fontSize:9, fontWeight:700, color:"#0369A1", background:"#F0F9FF", padding:"2px 6px", borderRadius:4 }}>
+                        ⏱ Grace: {graceHrs}h left
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {/* Slot bar */}
+                <div style={{ height:5, background:"#F1F5F9", borderRadius:99, marginBottom:8 }}>
+                  <div style={{ height:"100%", borderRadius:99, width:`${Math.min(100,(ev.filled/ev.slots)*100)}%`, background: ev.filled>=ev.slots ? "#10B981" : "#1D4ED8" }} />
+                </div>
+                {/* Waitlist count */}
+                {ev.waitQueue?.length > 0 && (
+                  <div style={{ fontSize:11, color:"#7C3AED", fontWeight:600 }}>
+                    {ev.waitQueue.length} officer{ev.waitQueue.length > 1 ? "s" : ""} on waitlist
+                  </div>
+                )}
+                {/* Supervisor actions */}
+                <div style={{ display:"flex", gap:8, marginTop:10 }}>
+                  <button onClick={() => {
+                    setEvents(prev => prev.map(e => e.id === ev.id ? { ...e, status:"CANCELED" } : e));
+                    logAction(`Canceled event: ${ev.title}`);
+                    addNotif(`Event canceled: ${ev.title}.`, "warn");
+                    showToast("Event canceled. Confirmed officers notified.", "warn");
+                  }} style={{ padding:"7px 12px", borderRadius:6, border:"1.5px solid #EF4444", background:"#fff", color:"#EF4444", fontWeight:700, fontSize:11, cursor:"pointer" }}>
+                    Cancel Event
+                  </button>
+                  <button onClick={() => {
+                    const newDate = prompt("New date (e.g. May 30):");
+                    const newTime = prompt("New time (e.g. 0800-1600):");
+                    if (newDate && newTime) { rescheduleEvent(ev.id, newDate, newTime); logAction(`Rescheduled ${ev.title} to ${newDate} ${newTime}`); }
+                  }} style={{ padding:"7px 12px", borderRadius:6, border:"1.5px solid #F59E0B", background:"#fff", color:"#D97706", fontWeight:700, fontSize:11, cursor:"pointer" }}>
+                    Reschedule
+                  </button>
+                  {canOverride && (
+                    <button onClick={() => {
+                      const name = prompt("Officer name to assign:");
+                      const reason = prompt("Override reason (required for audit log):");
+                      if (name && reason) {
+                        logAction(`OVERRIDE: Assigned ${name} to ${ev.title} — Reason: ${reason}`);
+                        addNotif(`Override issued by ${officer.name}: ${name} assigned to ${ev.title}.`, "warn");
+                        showToast("Override logged and applied.", "info");
+                      }
+                    }} style={{ padding:"7px 12px", borderRadius:6, border:"1.5px solid #7C3AED", background:"#fff", color:"#7C3AED", fontWeight:700, fontSize:11, cursor:"pointer" }}>
+                      Override
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Waitlist Tab */}
+      {tab === "waitlist" && (
+        <div>
+          <div style={{ fontSize:13, color:"#64748B", marginBottom:12 }}>All officers currently in waitlist queues — ordered by timestamp.</div>
+          {events.filter(ev => ev.waitQueue?.length > 0).length === 0 && (
+            <div style={{ textAlign:"center", padding:"40px 20px", color:"#94A3B8", fontSize:14 }}>No officers currently waitlisted.</div>
+          )}
+          {events.filter(ev => ev.waitQueue?.length > 0).map(ev => (
+            <div key={ev.id} style={{ background:"#fff", borderRadius:10, padding:14, border:"1px solid #E2E8F0", marginBottom:10 }}>
+              <div style={{ fontWeight:800, fontSize:13, color:"#0F172A", marginBottom:10 }}>{ev.title}</div>
+              {[...ev.waitQueue].sort((a,b) => a.joinedAt - b.joinedAt).map((w, idx) => {
+                const off = OFFICERS.find(o => o.id === w.officerId);
+                return (
+                  <div key={w.officerId} style={{ display:"flex", alignItems:"center", gap:10, padding:"7px 0", borderBottom:"1px solid #F1F5F9" }}>
+                    <span style={{ fontSize:12, fontWeight:800, color:"#1D4ED8", width:20 }}>#{idx+1}</span>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:13, fontWeight:700 }}>{off?.name || `Officer ${w.officerId}`}</div>
+                      <div style={{ fontSize:11, color:"#94A3B8" }}>{off?.badge} · Joined {formatTime(w.joinedAt)}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Approvals Tab */}
+      {tab === "approvals" && (
+        <div>
+          {cancelRequests.filter(r => r.status === "pending").length === 0 && (
+            <div style={{ textAlign:"center", padding:"40px 20px", color:"#94A3B8", fontSize:14 }}>No pending requests. 🎉</div>
+          )}
+          {cancelRequests.filter(r => r.status === "pending").map(req => (
+            <div key={req.id} style={{ background:"#fff", borderRadius:10, padding:14, border:"1px solid #E2E8F0", marginBottom:10 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
+                <span style={{ fontSize:9, fontWeight:800, color: req.type==="cancel" ? "#DC2626" : "#EA580C", background: req.type==="cancel" ? "#FEF2F2" : "#FFF7ED", padding:"3px 7px", borderRadius:4 }}>
+                  {req.type === "cancel" ? "CANCEL REQUEST" : "SLOT RELEASE"}
+                </span>
+                <span style={{ fontSize:11, color:"#94A3B8" }}>{formatTime(req.submittedAt)}</span>
+              </div>
+              <div style={{ fontWeight:700, fontSize:14, color:"#0F172A", marginBottom:2 }}>{req.officerName}</div>
+              <div style={{ fontSize:12, color:"#64748B", marginBottom:6 }}>{req.badge} · {req.eventTitle}</div>
+              <div style={{ fontSize:12, color:"#475569", background:"#F8FAFC", padding:"8px 10px", borderRadius:6, marginBottom:10, borderLeft:"3px solid #E2E8F0" }}>
+                <b>Reason:</b> {req.reason}
+              </div>
+              <div style={{ display:"flex", gap:8 }}>
+                <button onClick={() => { approveCancelRequest(req.id); logAction(`Approved ${req.type} for ${req.officerName} — ${req.eventTitle}`); }} style={{ flex:1, padding:"10px 0", borderRadius:8, border:"none", background:"#16A34A", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer" }}>✓ Approve</button>
+                <button onClick={() => { denyCancelRequest(req.id); logAction(`Denied ${req.type} for ${req.officerName} — ${req.eventTitle}`); }} style={{ flex:1, padding:"10px 0", borderRadius:8, border:"1.5px solid #DC2626", background:"#fff", color:"#DC2626", fontWeight:700, fontSize:13, cursor:"pointer" }}>✕ Deny</button>
+              </div>
+            </div>
+          ))}
+          {/* Show approved/denied history */}
+          {cancelRequests.filter(r => r.status !== "pending").length > 0 && (
+            <div style={{ marginTop:16 }}>
+              <div style={{ fontSize:10, fontWeight:700, color:"#94A3B8", letterSpacing:0.8, marginBottom:8 }}>HISTORY</div>
+              {cancelRequests.filter(r => r.status !== "pending").map(req => (
+                <div key={req.id} style={{ display:"flex", justifyContent:"space-between", padding:"8px 10px", background:"#F8FAFC", borderRadius:8, marginBottom:6 }}>
+                  <span style={{ fontSize:12, color:"#374151" }}>{req.officerName} — {req.eventTitle}</span>
+                  <span style={{ fontSize:11, fontWeight:700, color: req.status==="approved" ? "#16A34A" : "#DC2626" }}>
+                    {req.status.toUpperCase()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Reports Tab */}
+      {tab === "reports" && (
+        <div>
+          <div style={{ fontSize:13, color:"#64748B", marginBottom:14 }}>Export department data as CSV files.</div>
+          {[
+            ["Sign-up Records",  "All officer sign-ups with timestamps"],
+            ["Cancel Requests",  "All cancellations and slot releases"],
+            ["Audit Trail",      "Every supervisor action logged"],
+            ["Override Log",     "All override actions with justifications"],
+            ["Waitlist History", "Full waitlist queue records"],
+          ].map(([label, desc]) => (
+            <div key={label} style={{ background:"#fff", borderRadius:10, padding:"12px 14px", border:"1px solid #E2E8F0", marginBottom:8, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div>
+                <div style={{ fontWeight:700, fontSize:13 }}>{label}</div>
+                <div style={{ fontSize:11, color:"#94A3B8" }}>{desc}</div>
+              </div>
+              <button onClick={() => showToast(`${label} export — available once connected to backend database.`, "info")} style={{
+                padding:"7px 14px", borderRadius:6, border:"none",
+                background:"#1D4ED8", color:"#fff", fontWeight:700, fontSize:11, cursor:"pointer",
+              }}>Export CSV</button>
+            </div>
+          ))}
+          {/* Audit log preview */}
+          <div style={{ marginTop:16 }}>
+            <div style={{ fontSize:10, fontWeight:700, color:"#94A3B8", letterSpacing:0.8, marginBottom:8 }}>RECENT AUDIT LOG</div>
+            {auditLog.slice(0,10).map(entry => (
+              <div key={entry.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", padding:"8px 10px", borderBottom:"1px solid #F1F5F9" }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:12, fontWeight:600, color:"#374151" }}>{entry.action}</div>
+                  <div style={{ fontSize:10, color:"#94A3B8" }}>by {entry.actor}</div>
+                </div>
+                <div style={{ fontSize:10, color:"#94A3B8", flexShrink:0, marginLeft:8 }}>{formatTime(entry.timestamp)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Overrides Tab — Lieutenant+ only */}
+      {tab === "overrides" && canOverride && (
+        <div>
+          <div style={{ fontSize:13, color:"#64748B", marginBottom:12 }}>Issue a manual assignment override. Every override is permanently logged with your badge number and reason.</div>
+          <div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:8, padding:"10px 12px", marginBottom:14 }}>
+            <div style={{ fontSize:12, color:"#B91C1C", fontWeight:600 }}>⚠️ Overrides bypass the fairness system. Use only when operationally necessary. All overrides are visible to the Director.</div>
+          </div>
+          {auditLog.filter(e => e.action.startsWith("OVERRIDE")).map(entry => (
+            <div key={entry.id} style={{ background:"#FEF2F2", borderRadius:8, padding:"10px 12px", marginBottom:8, border:"1px solid #FECACA" }}>
+              <div style={{ fontSize:12, fontWeight:700, color:"#B91C1C" }}>{entry.action}</div>
+              <div style={{ fontSize:10, color:"#94A3B8", marginTop:2 }}>by {entry.actor} · {formatTime(entry.timestamp)}</div>
+            </div>
+          ))}
+          {auditLog.filter(e => e.action.startsWith("OVERRIDE")).length === 0 && (
+            <div style={{ textAlign:"center", padding:"30px 20px", color:"#94A3B8", fontSize:14 }}>No overrides issued.</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Post Event Form ───────────────────────────────────────────────────────────
+function PostEventForm({ officer, onPost, onClose }) {
+  const [form, setForm] = useState({
+    title:"", type:"SPECIAL", date:"", time:"", timeStart:"", timeEnd:"", location:"", notes:"",
+    gracePeriodActive: false,
+    rankSlots: { "Campus Security Assistant":0, "CPO":0, "Corporal":0, "Sergeant":0, "Specialist":0 },
+  });
+  const [queue, setQueue] = useState([]); // multi-event queue
+
+  const totalSlots = Object.values(form.rankSlots).reduce((a,b) => a+b, 0);
+  const isValid = form.title && form.date && form.timeStart && form.timeEnd && totalSlots > 0;
+  const formattedTime = form.timeStart && form.timeEnd ? `${form.timeStart}-${form.timeEnd}` : "";
+
+  const update = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  const resetForm = () => setForm({
+    title:"", type:"SPECIAL", date:"", time:"", location:"", notes:"",
+    gracePeriodActive: false,
+    rankSlots: { "Campus Security Assistant":0, "CPO":0, "Corporal":0, "Sergeant":0, "Specialist":0 },
+  });
+
+  // Build event object from current form
+  const buildEvent = () => ({
+    title: form.title, type: form.type, date: form.date, time: formattedTime,
+    location: form.location, notes: form.notes, hold: false,
+    slots: totalSlots, rankSlots: { ...form.rankSlots },
+    status: form.status || "OPEN",
+  });
+
+  // Add current form to queue
+  const addToQueue = () => {
+    if (!isValid) return;
+    setQueue(prev => [...prev, { ...buildEvent(), queueId: Date.now() }]);
+    resetForm();
+  };
+
+  // Remove from queue
+  const removeFromQueue = (queueId) => {
+    setQueue(prev => prev.filter(e => e.queueId !== queueId));
+  };
+
+  // Post single event now
+  const postNow = () => {
+    if (!isValid) return;
+    onPost([{ ...buildEvent(), postedAt: Date.now() }]);
+  };
+
+  // Post all queued events at once — shared postedAt per Rodney Memo
+  const postAll = () => {
+    const sharedPostedAt = Date.now();
+    const allEvents = [
+      ...(isValid ? [{ ...buildEvent(), postedAt: sharedPostedAt }] : []),
+      ...queue.map(e => ({ ...e, postedAt: sharedPostedAt })),
+    ];
+    if (allEvents.length === 0) return;
+    onPost(allEvents);
+  };
+
+  const inputStyle = {
+    width:"100%", padding:"10px 12px", borderRadius:8,
+    border:"1px solid #E2E8F0", fontSize:13, boxSizing:"border-box",
+    fontFamily:"system-ui, sans-serif", background:"#F8FAFC",
+  };
+  const labelStyle = { fontSize:10, fontWeight:700, color:"#64748B", letterSpacing:1, textTransform:"uppercase", display:"block", marginBottom:5 };
+
+  return (
+    <div style={{ background:"#fff", borderRadius:12, padding:18, border:"1.5px solid #1D4ED8", marginBottom:16, boxShadow:"0 4px 20px rgba(29,78,216,0.1)" }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+        <div>
+          <div style={{ fontSize:14, fontWeight:800, color:"#1D4ED8" }}>Post New Event</div>
+          {queue.length > 0 && (
+            <div style={{ fontSize:11, color:"#059669", fontWeight:700, marginTop:2 }}>
+              {queue.length} event{queue.length > 1 ? "s" : ""} in queue
+            </div>
+          )}
+        </div>
+        <button onClick={onClose} style={{ background:"none", border:"none", fontSize:18, color:"#94A3B8", cursor:"pointer" }}>✕</button>
+      </div>
+
+      {/* Rodney Memo guidance */}
+      <div style={{ background:"#FFFBEB", border:"1px solid #FDE68A", borderRadius:8, padding:"10px 12px", marginBottom:14 }}>
+        <div style={{ fontSize:11, fontWeight:700, color:"#92400E", marginBottom:3 }}>📋 Per Rodney Memo Protocol</div>
+        <div style={{ fontSize:11, color:"#78350F", lineHeight:1.6 }}>
+          Use <b>Add to Queue</b> to stage multiple events, then tap <b>Post All</b> to publish them together with one shared timestamp — counting as one sheet. Officers may only sign up for one slot across the entire posting during the 72-hour grace period.
+        </div>
+      </div>
+
+      {/* Queue panel */}
+      {queue.length > 0 && (
+        <div style={{ background:"#F0FDF4", border:"1.5px solid #A7F3D0", borderRadius:10, padding:14, marginBottom:14 }}>
+          <div style={{ fontSize:10, fontWeight:800, color:"#059669", letterSpacing:0.8, marginBottom:10 }}>
+            📋 POSTING QUEUE — {queue.length} EVENT{queue.length > 1 ? "S" : ""}
+          </div>
+          {queue.map((ev, idx) => (
+            <div key={ev.queueId} style={{
+              display:"flex", alignItems:"center", gap:10,
+              background:"#fff", borderRadius:8, padding:"9px 12px",
+              marginBottom:6, border:"1px solid #D1FAE5",
+            }}>
+              <span style={{ fontSize:12, fontWeight:800, color:"#059669", width:18 }}>#{idx+1}</span>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:13, fontWeight:700, color:"#0F172A" }}>{ev.title}</div>
+                <div style={{ fontSize:11, color:"#64748B" }}>{ev.date} · {ev.time} · {ev.slots} slot{ev.slots > 1 ? "s" : ""} · {ev.type}</div>
+              </div>
+              <button onClick={() => removeFromQueue(ev.queueId)} style={{
+                background:"none", border:"none", color:"#EF4444",
+                fontSize:16, cursor:"pointer", padding:"0 4px", flexShrink:0,
+              }}>✕</button>
+            </div>
+          ))}
+          {/* Post All button */}
+          <button onClick={postAll} style={{
+            width:"100%", marginTop:8, padding:"12px 0", borderRadius:8, border:"none",
+            background:"#059669", color:"#fff", fontWeight:800, fontSize:14, cursor:"pointer",
+            boxShadow:"0 4px 12px rgba(5,150,105,0.3)",
+          }}>
+            🚀 Post All {isValid ? queue.length + 1 : queue.length} Events & Notify Officers
+          </button>
+        </div>
+      )}
+
+      {/* Form fields */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
+        <div style={{ gridColumn:"1/-1" }}>
+          <label style={labelStyle}>Event Title *</label>
+          <input value={form.title} onChange={e=>update("title",e.target.value)} placeholder="e.g. Spring Commencement" style={inputStyle} />
+        </div>
+        <div>
+          <label style={labelStyle}>Event Type *</label>
+          <select value={form.type} onChange={e=>update("type",e.target.value)} style={inputStyle}>
+            {EVENT_TYPES_POST.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={labelStyle}>Status</label>
+          <select value={form.status||"OPEN"} onChange={e=>update("status",e.target.value)} style={inputStyle}>
+            <option value="OPEN">Open</option>
+            <option value="URGENT">Urgent</option>
+          </select>
+        </div>
+        <div>
+          <label style={labelStyle}>Date *</label>
+          <input type="date" value={form.date} onChange={e=>update("date",e.target.value)} style={inputStyle} />
+        </div>
+        <div style={{ gridColumn:"1/-1" }}>
+          <label style={labelStyle}>Time *</label>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <select value={form.timeStart||""} onChange={e=>update("timeStart",e.target.value)} style={{ ...inputStyle, flex:1 }}>
+              <option value="">Start time</option>
+              {["0000","0100","0200","0300","0400","0500","0600","0700","0800","0900","1000","1100",
+                "1200","1300","1400","1500","1600","1700","1800","1900","2000","2100","2200","2300"].map(t => {
+                const h = parseInt(t);
+                const lbl = h===0?"12:00 AM":h<12?`${h}:00 AM`:h===12?"12:00 PM":`${h-12}:00 PM`;
+                return <option key={t} value={t}>{lbl} ({t})</option>;
+              })}
+            </select>
+            <span style={{ fontSize:13, fontWeight:700, color:"#94A3B8", flexShrink:0 }}>to</span>
+            <select value={form.timeEnd||""} onChange={e=>update("timeEnd",e.target.value)} style={{ ...inputStyle, flex:1 }}>
+              <option value="">End time</option>
+              {["0000","0100","0200","0300","0400","0500","0600","0700","0800","0900","1000","1100",
+                "1200","1300","1400","1500","1600","1700","1800","1900","2000","2100","2200","2300"].map(t => {
+                const h = parseInt(t);
+                const lbl = h===0?"12:00 AM":h<12?`${h}:00 AM`:h===12?"12:00 PM":`${h-12}:00 PM`;
+                return <option key={t} value={t}>{lbl} ({t})</option>;
+              })}
+            </select>
+          </div>
+          {form.timeStart && form.timeEnd && (
+            <div style={{ fontSize:11, color:"#059669", fontWeight:700, marginTop:5 }}>
+              ✓ Shift: {form.timeStart}–{form.timeEnd}
+            </div>
+          )}
+        </div>
+        <div style={{ gridColumn:"1/-1" }}>
+          <label style={labelStyle}>Location</label>
+          <select value={form.location} onChange={e=>update("location",e.target.value)} style={inputStyle}>
+            <option value="">Select location...</option>
+            {LOCATIONS.map(grp => (
+              <optgroup key={grp.building} label={grp.building}>
+                {grp.spaces.map(s => (
+                  <option key={s} value={`${grp.building} — ${s}`}>{s}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Rank quota builder */}
+      <div style={{ marginBottom:12 }}>
+        <label style={labelStyle}>Officers Needed by Rank *</label>
+        <div style={{ border:"1px solid #E2E8F0", borderRadius:8, overflow:"hidden" }}>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 100px", padding:"7px 12px", background:"#F8FAFC", borderBottom:"1px solid #E2E8F0" }}>
+            <span style={{ fontSize:10, fontWeight:700, color:"#64748B", letterSpacing:0.8 }}>RANK</span>
+            <span style={{ fontSize:10, fontWeight:700, color:"#64748B", letterSpacing:0.8, textAlign:"center" }}>SLOTS</span>
+          </div>
+          {SIGNABLE_RANKS.map(rank => (
+            <div key={rank} style={{ display:"grid", gridTemplateColumns:"1fr 100px", padding:"8px 12px", borderBottom:"1px solid #F1F5F9", alignItems:"center" }}>
+              <span style={{ fontSize:13, color:"#374151" }}>{rank}</span>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:0 }}>
+                <button
+                  onClick={() => update("rankSlots", { ...form.rankSlots, [rank]: Math.max(0, (form.rankSlots[rank]||0) - 1) })}
+                  style={{
+                    width:28, height:28, borderRadius:"6px 0 0 6px",
+                    border:"1px solid #E2E8F0", background:"#F8FAFC",
+                    color:"#374151", fontSize:16, fontWeight:700,
+                    cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
+                  }}>−</button>
+                <div style={{
+                  width:32, height:28, border:"1px solid #E2E8F0", borderLeft:"none", borderRight:"none",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  fontSize:13, fontWeight:800, color:"#0F172A", background:"#fff",
+                }}>
+                  {form.rankSlots[rank]||0}
+                </div>
+                <button
+                  onClick={() => update("rankSlots", { ...form.rankSlots, [rank]: Math.min(10, (form.rankSlots[rank]||0) + 1) })}
+                  style={{
+                    width:28, height:28, borderRadius:"0 6px 6px 0",
+                    border:"1px solid #E2E8F0", background:"#1D4ED8",
+                    color:"#fff", fontSize:16, fontWeight:700,
+                    cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
+                  }}>+</button>
+              </div>
+            </div>
+          ))}
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 100px", padding:"8px 12px", background:"#EFF6FF", alignItems:"center" }}>
+            <span style={{ fontSize:12, fontWeight:700, color:"#1D4ED8" }}>Total Slots</span>
+            <span style={{ fontSize:15, fontWeight:900, color:"#1D4ED8", textAlign:"center", display:"block" }}>{totalSlots}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Toggles */}
+      <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:14 }}>
+        {[
+          ["gracePeriodActive","Activate 72h Grace Period now","Limits each officer to one signup per the Rodney Memo"],
+        ].map(([key, label, desc]) => (
+          <div key={key} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 12px", background:"#F8FAFC", borderRadius:8 }}>
+            <div>
+              <div style={{ fontSize:13, fontWeight:700 }}>{label}</div>
+              <div style={{ fontSize:11, color:"#94A3B8" }}>{desc}</div>
+            </div>
+            <div onClick={() => update(key, !form[key])} style={{
+              width:40, height:22, borderRadius:11, cursor:"pointer",
+              background: form[key] ? "#1D4ED8" : "#CBD5E1",
+              position:"relative", transition:"background 0.2s", flexShrink:0,
+            }}>
+              <div style={{ position:"absolute", top:2, left: form[key] ? 20 : 2, width:18, height:18, borderRadius:"50%", background:"#fff", transition:"left 0.2s" }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Notes */}
+      <div style={{ marginBottom:14 }}>
+        <label style={labelStyle}>Supervisor Notes</label>
+        <textarea value={form.notes} onChange={e=>update("notes",e.target.value)} placeholder="Any additional instructions for officers..." style={{ ...inputStyle, height:72, resize:"none" }} />
+      </div>
+
+      {/* Action buttons */}
+      <div style={{ display:"flex", gap:10 }}>
+        <button onClick={addToQueue} disabled={!isValid} style={{
+          flex:1, padding:"12px 0", borderRadius:8,
+          border: isValid ? "1.5px solid #1D4ED8" : "1.5px solid #CBD5E1",
+          background:"#fff",
+          color: isValid ? "#1D4ED8" : "#94A3B8",
+          fontWeight:700, fontSize:13,
+          cursor: isValid ? "pointer" : "default",
+        }}>
+          + Add to Queue
+        </button>
+        <button onClick={postNow} disabled={!isValid} style={{
+          flex:1, padding:"12px 0", borderRadius:8, border:"none",
+          background: isValid ? "#1D4ED8" : "#CBD5E1",
+          color:"#fff", fontWeight:700, fontSize:13,
+          cursor: isValid ? "pointer" : "default",
+        }}>
+          Post Now
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Fire Watch Form ───────────────────────────────────────────────────────────
+function FireWatchForm({ officer, onPost, onClose }) {
+  const FIRE_WATCH_LOCATION = "VC Building (17 Lex)";
+  const [slots, setSlots] = useState({
+    "Sat Overnight (0000-0800)": 1,
+    "Sat Day (0800-1600)":       1,
+    "Sat Evening (1600-0000)":   1,
+    "Sun Overnight (0000-0800)": 1,
+    "Sun Day (0800-1600)":       1,
+    "Sun Evening (1600-0000)":   1,
+    "Mon-Fri Day (0800-1600)":   2,
+  });
+  const [gracePeriodActive, setGracePeriodActive] = useState(true);
+
+  const inputStyle = { width:50, textAlign:"center", padding:"5px 4px", fontSize:13, fontWeight:700, borderRadius:6, border:"1px solid #E2E8F0", margin:"0 auto", display:"block" };
+
+  return (
+    <div style={{ background:"#fff", borderRadius:12, padding:18, border:"1.5px solid #DC2626", marginBottom:16, boxShadow:"0 4px 20px rgba(220,38,38,0.1)" }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+        <div>
+          <div style={{ fontSize:14, fontWeight:800, color:"#DC2626" }}>Post Fire Watch</div>
+          <div style={{ fontSize:11, color:"#64748B", marginTop:2 }}>{FIRE_WATCH_LOCATION}</div>
+        </div>
+        <button onClick={onClose} style={{ background:"none", border:"none", fontSize:18, color:"#94A3B8", cursor:"pointer" }}>✕</button>
+      </div>
+
+      <div style={{ fontSize:11, color:"#92400E", background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:8, padding:"8px 12px", marginBottom:14, fontWeight:600 }}>
+        🔥 Fire Watch shifts will be posted as separate events. Adjust slot counts as needed.
+      </div>
+
+      <div style={{ border:"1px solid #E2E8F0", borderRadius:8, overflow:"hidden", marginBottom:12 }}>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 80px", padding:"7px 12px", background:"#FEF2F2", borderBottom:"1px solid #FECACA" }}>
+          <span style={{ fontSize:10, fontWeight:700, color:"#DC2626", letterSpacing:0.8 }}>SHIFT</span>
+          <span style={{ fontSize:10, fontWeight:700, color:"#DC2626", letterSpacing:0.8, textAlign:"center" }}>SLOTS</span>
+        </div>
+        {Object.entries(slots).map(([shift, count]) => (
+          <div key={shift} style={{ display:"grid", gridTemplateColumns:"1fr 80px", padding:"9px 12px", borderBottom:"1px solid #F1F5F9", alignItems:"center" }}>
+            <span style={{ fontSize:12, color:"#374151" }}>{shift}</span>
+            <input type="number" min="0" max="10" value={count}
+              onChange={e => setSlots(p => ({ ...p, [shift]: parseInt(e.target.value)||0 }))}
+              style={inputStyle}
+            />
+          </div>
+        ))}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 80px", padding:"8px 12px", background:"#FEF2F2", alignItems:"center" }}>
+          <span style={{ fontSize:12, fontWeight:700, color:"#DC2626" }}>Total Shifts</span>
+          <span style={{ fontSize:15, fontWeight:900, color:"#DC2626", textAlign:"center", display:"block" }}>{Object.keys(slots).filter(k=>slots[k]>0).length}</span>
+        </div>
+      </div>
+
+      {/* Grace period toggle */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 12px", background:"#F8FAFC", borderRadius:8, marginBottom:14 }}>
+        <div>
+          <div style={{ fontSize:13, fontWeight:700 }}>Activate 72h Grace Period</div>
+          <div style={{ fontSize:11, color:"#94A3B8" }}>Limits each officer to one shift</div>
+        </div>
+        <div onClick={() => setGracePeriodActive(s => !s)} style={{
+          width:40, height:22, borderRadius:11, cursor:"pointer",
+          background: gracePeriodActive ? "#DC2626" : "#CBD5E1", position:"relative", transition:"background 0.2s",
+        }}>
+          <div style={{ position:"absolute", top:2, left: gracePeriodActive ? 20 : 2, width:18, height:18, borderRadius:"50%", background:"#fff", transition:"left 0.2s" }} />
+        </div>
+      </div>
+
+      <button onClick={() => {
+        const shifts = Object.entries(slots).filter(([,count]) => count > 0).map(([shift, count]) => ({
+          title: `Fire Watch — ${shift}`,
+          type: "FIRE WATCH",
+          date: "This Week",
+          time: shift.match(/\d{4}-\d{4}/)?.[0] || shift,
+          location: FIRE_WATCH_LOCATION,
+          slots: count,
+          hold: false,
+          status: "OPEN",
+          postedAt: Date.now(),
+          rankSlots: { "Campus Security Assistant": count, "CPO": 0, "Corporal": 0, "Sergeant": 0, "Specialist": 0 },
+        }));
+        onPost(shifts);
+      }} style={{
+        width:"100%", padding:"13px 0", borderRadius:8, border:"none",
+        background:"#DC2626", color:"#fff", fontWeight:800, fontSize:15, cursor:"pointer",
+      }}>
+        Post All Fire Watch Shifts & Notify Officers
+      </button>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // ROOT APP
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function App() {
@@ -2375,11 +3093,27 @@ export default function App() {
 
   // Post a new event and notify all officers by email
   const postEvent = (newEvent) => {
-    const ev = { ...newEvent, id: Date.now(), filled: 0, waitQueue: [], status: "OPEN" };
+    const ev = { ...newEvent, id: Date.now(), filled: 0, waitQueue: [], status: "OPEN", postedAt: Date.now() };
     setEvents(prev => [...prev, ev]);
     addNotif(`New event posted: ${ev.title} on ${ev.date}.`, "info");
     showToast(`Event posted! Notifying all officers by email.`, "success");
     sendEmailToAll("new_event", ev);
+  };
+
+  // ── Reschedule an event (memo: assigned officers get first opportunity) ────
+  const rescheduleEvent = (eventId, newDate, newTime) => {
+    const ev = events.find(e => e.id === eventId);
+    if (!ev) return;
+    setEvents(prev => prev.map(e =>
+      e.id === eventId ? { ...e, date: newDate, time: newTime, status: "OPEN", postedAt: Date.now() } : e
+    ));
+    // Notify all confirmed officers first per memo policy
+    const confirmedOfficerIds = confirmed.filter(c => c.eventId === eventId).map(c => c.eventId);
+    OFFICERS.forEach(off => {
+      sendEmail("event_rescheduled", off, { ...ev, date: newDate, time: newTime });
+    });
+    addNotif(`${ev.title} has been rescheduled to ${newDate} at ${newTime}. Assigned officers have been notified.`, "info");
+    showToast(`Event rescheduled. Officers notified by email.`, "info");
   };
 
   // ── Confirmed signups: { eventId, signedAt } ─────────────────────────────
@@ -2431,10 +3165,32 @@ export default function App() {
 
   const showToast = (msg, type = "info") => setToast({ msg, type });
 
+  // ── Grace period helper ────────────────────────────────────────────────────
+  const isInGracePeriod = (ev) => {
+    if (!ev?.postedAt) return false;
+    return (Date.now() - ev.postedAt) < GRACE_PERIOD_MS;
+  };
+
+  // ── Memo rule: during grace period officer can only hold ONE signup total ──
+  const hasGracePeriodSignup = () => {
+    return confirmed.some(c => {
+      const ev = events.find(e => e.id === c.eventId);
+      return ev && isInGracePeriod(ev);
+    });
+  };
+
   // ── Sign up for an event ──────────────────────────────────────────────────
   const handleSignup = (eventId) => {
     const ev = events.find(e => e.id === eventId);
     if (!ev || ev.filled >= ev.slots) return;
+
+    // Memo rule: during 72h grace period only ONE signup allowed across all events
+    if (isInGracePeriod(ev) && hasGracePeriodSignup()) {
+      showToast("Policy: Only one sign-up allowed during the 72-hour grace period.", "warn");
+      addNotif("Sign-up blocked: You already have a signup during an active grace period. Additional sign-ups are permitted once the 72-hour window has elapsed.", "warn");
+      return;
+    }
+
     setEvents(prev => prev.map(e => e.id === eventId ? { ...e, filled: e.filled + 1 } : e));
     setConfirmed(prev => [...prev, { eventId, signedAt: Date.now() }]);
     addNotif(`You've been confirmed for ${ev.title}.`, "success");
@@ -2499,6 +3255,19 @@ export default function App() {
       const idx = sorted.findIndex(w => w.officerId === officer?.id);
       return idx >= 0 ? idx + 1 : null;
     },
+    // Grace period helpers for UI
+    isInGracePeriod,
+    hasGracePeriodSignup,
+    gracePeriodBlocksSignup: (ev) => isInGracePeriod(ev) && hasGracePeriodSignup(),
+    getGraceTimeLeft: (ev) => {
+      if (!ev?.postedAt) return null;
+      const elapsed = Date.now() - ev.postedAt;
+      const remaining = GRACE_PERIOD_MS - elapsed;
+      if (remaining <= 0) return null;
+      const hrs = Math.floor(remaining / 3600000);
+      const mins = Math.floor((remaining % 3600000) / 60000);
+      return hrs > 0 ? `${hrs}h ${mins}m remaining` : `${mins}m remaining`;
+    },
   };
 
   // ── Auth handlers ────────────────────────────────────────────────────────────
@@ -2544,7 +3313,7 @@ export default function App() {
   };
 
   const navTitles = {
-    dashboard: "Dashboard", schedule: "Calendar", "slot-release": "Slot Release",
+    dashboard: officer && isSpecialistPlus(officer.rank) ? "Admin Dashboard" : "Dashboard", schedule: "Calendar", "slot-release": "Slot Release",
     "cancel-requests": "Cancel Requests", faq: "FAQ", settings: "Settings", profile: "My Profile",
     approvals: "Approvals Queue",
   };
@@ -2586,7 +3355,27 @@ export default function App() {
         />
       )}
 
-      {nav === "dashboard"       && <Dashboard officer={officer} signups={signups} handleSignup={handleSignup} handleWaitlist={handleWaitlist} handleCancel={handleCancel} submitCancelRequest={submitCancelRequest} isSgt={isSgtPlus(officer?.rank)} showToast={showToast} startTour={startTour} events={events} />}
+      {/* Route to Supervisor Dashboard for Specialist+ and Officer Dashboard for others */}
+      {nav === "dashboard" && isSpecialistPlus(officer?.rank)
+        ? <SupervisorDashboard
+            officer={officer}
+            events={events}
+            setEvents={setEvents}
+            confirmed={confirmed}
+            setConfirmed={setConfirmed}
+            notifications={notifications}
+            addNotif={addNotif}
+            showToast={showToast}
+            sendEmail={sendEmail}
+            sendEmailToAll={sendEmailToAll}
+            cancelRequests={cancelRequests}
+            approveCancelRequest={approveCancelRequest}
+            denyCancelRequest={denyCancelRequest}
+            postEvent={postEvent}
+            rescheduleEvent={rescheduleEvent}
+          />
+        : nav === "dashboard" && <Dashboard officer={officer} signups={signups} handleSignup={handleSignup} handleWaitlist={handleWaitlist} handleCancel={handleCancel} submitCancelRequest={submitCancelRequest} isSgt={isSgtPlus(officer?.rank)} showToast={showToast} startTour={startTour} events={events} />
+      }
       {nav === "schedule"        && <Schedule signups={signups} />}
       {nav === "slot-release"    && <SlotRelease showToast={showToast} />}
       {nav === "cancel-requests" && <CancelRequests />}
