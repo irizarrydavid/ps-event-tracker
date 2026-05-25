@@ -2641,23 +2641,25 @@ function PostEventForm({ officer, onPost, onClose }) {
 
   const totalSlots = Object.values(form.rankSlots).reduce((a,b) => a+b, 0);
   const isValid = form.title && form.date && form.timeStart && form.timeEnd && totalSlots > 0;
-  const formattedTime = form.timeStart && form.timeEnd ? `${form.timeStart}-${form.timeEnd}` : "";
 
   const update = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
   const resetForm = () => setForm({
-    title:"", type:"SPECIAL", date:"", time:"", location:"", notes:"",
+    title:"", type:"SPECIAL", date:"", time:"", timeStart:"", timeEnd:"", location:"", notes:"",
     gracePeriodActive: false,
     rankSlots: { "Campus Security Assistant":0, "CPO":0, "Corporal":0, "Sergeant":0, "Specialist":0 },
   });
 
-  // Build event object from current form
-  const buildEvent = () => ({
-    title: form.title, type: form.type, date: form.date, time: formattedTime,
-    location: form.location, notes: form.notes, hold: false,
-    slots: totalSlots, rankSlots: { ...form.rankSlots },
-    status: form.status || "OPEN",
-  });
+  // Build event object from current form — compute formattedTime here to avoid stale closure
+  const buildEvent = () => {
+    const formattedTime = form.timeStart && form.timeEnd ? `${form.timeStart}-${form.timeEnd}` : "";
+    return {
+      title: form.title, type: form.type, date: form.date, time: formattedTime,
+      location: form.location, notes: form.notes, hold: false,
+      slots: totalSlots, rankSlots: { ...form.rankSlots },
+      status: form.status || "OPEN",
+    };
+  };
 
   // Add current form to queue
   const addToQueue = () => {
@@ -2777,28 +2779,28 @@ function PostEventForm({ officer, onPost, onClose }) {
         <div style={{ gridColumn:"1/-1" }}>
           <label style={labelStyle}>Time *</label>
           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            <select value={form.timeStart||""} onChange={e=>update("timeStart",e.target.value)} style={{ ...inputStyle, flex:1 }}>
-              <option value="">Start time</option>
-              {["0000","0100","0200","0300","0400","0500","0600","0700","0800","0900","1000","1100",
-                "1200","1300","1400","1500","1600","1700","1800","1900","2000","2100","2200","2300"].map(t => {
-                const h = parseInt(t);
-                const lbl = h===0?"12:00 AM":h<12?`${h}:00 AM`:h===12?"12:00 PM":`${h-12}:00 PM`;
-                return <option key={t} value={t}>{lbl} ({t})</option>;
-              })}
-            </select>
-            <span style={{ fontSize:13, fontWeight:700, color:"#94A3B8", flexShrink:0 }}>to</span>
-            <select value={form.timeEnd||""} onChange={e=>update("timeEnd",e.target.value)} style={{ ...inputStyle, flex:1 }}>
-              <option value="">End time</option>
-              {["0000","0100","0200","0300","0400","0500","0600","0700","0800","0900","1000","1100",
-                "1200","1300","1400","1500","1600","1700","1800","1900","2000","2100","2200","2300"].map(t => {
-                const h = parseInt(t);
-                const lbl = h===0?"12:00 AM":h<12?`${h}:00 AM`:h===12?"12:00 PM":`${h-12}:00 PM`;
-                return <option key={t} value={t}>{lbl} ({t})</option>;
-              })}
-            </select>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:10, color:"#94A3B8", fontWeight:600, marginBottom:4 }}>START</div>
+              <input
+                type="time"
+                value={form.timeStart||""}
+                onChange={e => update("timeStart", e.target.value)}
+                style={{ ...inputStyle, textAlign:"center", fontSize:15, fontWeight:700, color:"#0F172A" }}
+              />
+            </div>
+            <span style={{ fontSize:13, fontWeight:700, color:"#94A3B8", flexShrink:0, marginTop:18 }}>to</span>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:10, color:"#94A3B8", fontWeight:600, marginBottom:4 }}>END</div>
+              <input
+                type="time"
+                value={form.timeEnd||""}
+                onChange={e => update("timeEnd", e.target.value)}
+                style={{ ...inputStyle, textAlign:"center", fontSize:15, fontWeight:700, color:"#0F172A" }}
+              />
+            </div>
           </div>
           {form.timeStart && form.timeEnd && (
-            <div style={{ fontSize:11, color:"#059669", fontWeight:700, marginTop:5 }}>
+            <div style={{ fontSize:11, color:"#059669", fontWeight:700, marginTop:6 }}>
               ✓ Shift: {form.timeStart}–{form.timeEnd}
             </div>
           )}
