@@ -84,7 +84,7 @@ const TOURS = {
       {
         id: "waitlisted",
         title: "Your Waitlist Position",
-        body: "If an event is full, join the waitlist. You'll be notified automatically when a slot opens. Priority is determined by fairness rotation, then seniority.",
+        body: "If an event is full, join the waitlist. Your position is determined by the timestamp of when you joined — first in, first out. You'll be automatically confirmed when a slot opens.",
         target: "waitlisted-slots", position: "bottom",
         nextLabel: "Got it",
       },
@@ -254,7 +254,7 @@ const TOURS = {
       {
         id: "slot-release-sup",
         title: "Slot Release Management",
-        body: "When you approve a slot release, the system automatically offers the slot to the next officer in the fairness rotation. If no one accepts within the deadline, you're alerted.",
+        body: "When you approve a slot release, the system automatically offers the slot to the next officer in the waitlist queue — ordered strictly by timestamp. First in, first out. No manual selection needed.",
         target: null, position: "center", nav: "slot-release",
         nextLabel: "Got it",
       },
@@ -1134,61 +1134,122 @@ function Dashboard({ officer, signups, handleSignup, handleWaitlist, handleCance
 // ═══════════════════════════════════════════════════════════════════════════════
 // SCHEDULE VIEW
 // ═══════════════════════════════════════════════════════════════════════════════
-function Schedule({ signups }) {
-  const days = ["S","M","T","W","T","F","S"];
-  const weeks = [[null,null,null,null,null,1,2],[3,4,5,6,7,8,9],[10,11,12,13,14,15,16],[17,18,19,20,21,22,23],[24,25,26,27,28,29,30],[31,null,null,null,null,null,null]];
+function Schedule({ signups, events }) {
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [currentMonth, setCurrentMonth] = useState({ year: 2026, month: 4 }); // May 2026 (0-indexed)
 
-  const eventsByDate = {
-    11: { label: "Basketb...", color: "#10B981" },
-    14: { label: "Spring C...", color: "#64748B" },
-    15: { label: "Friday Ev...", color: "#64748B" },
-    18: { label: "Alumni G...", color: "#64748B" },
-    21: { label: "New Stu...", color: "#64748B" },
-    27: { label: "Board of...", color: "#64748B" },
-    9:  { label: "Fire Wat...", urgent: true },
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const days = ["S","M","T","W","T","F","S"];
+
+  // Parse event date string into day number for current month
+  const getEventDay = (dateStr) => {
+    if (!dateStr) return null;
+    const match = dateStr.match(/(\d+)/);
+    return match ? parseInt(match[1]) : null;
   };
-  const confirmed = [11, 18];
+
+  const monthName = monthNames[currentMonth.month];
+  const firstDay = new Date(currentMonth.year, currentMonth.month, 1).getDay();
+  const daysInMonth = new Date(currentMonth.year, currentMonth.month + 1, 0).getDate();
+
+  // Build calendar grid
+  const cells = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+  const weeks = [];
+  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i+7));
+
+  // Map events to day numbers
+  const eventsByDay = {};
+  events?.forEach(ev => {
+    const day = getEventDay(ev.date);
+    if (day) {
+      if (!eventsByDay[day]) eventsByDay[day] = [];
+      eventsByDay[day].push(ev);
+    }
+  });
+
+  const typeColors = {
+    "COMMENCEMENT": "#7C3AED", "ATHLETICS": "#0369A1", "SPECIAL": "#0F766E",
+    "FIRE WATCH": "#DC2626", "STUDENT LIFE": "#D97706", "PATROL": "#475569",
+    "BPAC": "#DB2777", "OTHER": "#64748B",
+  };
+
+  const today = new Date();
+  const isToday = (day) => day === today.getDate() && currentMonth.month === today.getMonth() && currentMonth.year === today.getFullYear();
 
   return (
-    <div style={{ padding: "16px 14px" }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: 1, textTransform: "uppercase", marginBottom: 2 }}>OPERATIONS</div>
-      <div style={{ fontSize: 22, fontWeight: 900, color: "#0F172A", marginBottom: 2 }}>Schedule Calendar</div>
-      <div style={{ fontSize: 13, color: "#64748B", marginBottom: 16 }}>Your approved shifts highlighted in blue</div>
+    <div style={{ padding:"16px 14px", fontFamily:"'DM Sans', system-ui, sans-serif" }}>
+      <div style={{ fontSize:11, fontWeight:700, color:"#94A3B8", letterSpacing:1, textTransform:"uppercase", marginBottom:2 }}>OPERATIONS</div>
+      <div style={{ fontSize:22, fontWeight:900, color:"#0F172A", marginBottom:2 }}>Schedule Calendar</div>
+      <div style={{ fontSize:13, color:"#64748B", marginBottom:16 }}>Tap any event to see details</div>
 
-      <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 12, padding: 14 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <button style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #E2E8F0", background: "#fff", fontWeight: 600, cursor: "pointer" }}>Prev</button>
-          <span style={{ fontWeight: 800, fontSize: 16 }}>May 2026</span>
-          <button style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #E2E8F0", background: "#fff", fontWeight: 600, cursor: "pointer" }}>Next</button>
+      <div style={{ background:"#fff", border:"1px solid #E2E8F0", borderRadius:12, padding:14 }}>
+        {/* Month nav */}
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+          <button onClick={() => setCurrentMonth(p => {
+            const d = new Date(p.year, p.month - 1, 1);
+            return { year: d.getFullYear(), month: d.getMonth() };
+          })} style={{ padding:"6px 14px", borderRadius:8, border:"1px solid #E2E8F0", background:"#fff", fontWeight:600, cursor:"pointer" }}>‹</button>
+          <span style={{ fontWeight:800, fontSize:16 }}>{monthName} {currentMonth.year}</span>
+          <button onClick={() => setCurrentMonth(p => {
+            const d = new Date(p.year, p.month + 1, 1);
+            return { year: d.getFullYear(), month: d.getMonth() };
+          })} style={{ padding:"6px 14px", borderRadius:8, border:"1px solid #E2E8F0", background:"#fff", fontWeight:600, cursor:"pointer" }}>›</button>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
-          {days.map((d, i) => (
-            <div key={i} style={{ textAlign: "center", fontSize: 11, fontWeight: 700, color: "#94A3B8", padding: "4px 0" }}>{d}</div>
+        {/* Day headers */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(7, 1fr)", gap:2, marginBottom:4 }}>
+          {days.map((d,i) => (
+            <div key={i} style={{ textAlign:"center", fontSize:11, fontWeight:700, color:"#94A3B8", padding:"4px 0" }}>{d}</div>
           ))}
         </div>
 
+        {/* Calendar grid */}
         {weeks.map((week, wi) => (
-          <div key={wi} style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+          <div key={wi} style={{ display:"grid", gridTemplateColumns:"repeat(7, 1fr)", gap:2 }}>
             {week.map((day, di) => {
-              const ev = day ? eventsByDate[day] : null;
-              const isConfirmed = day && confirmed.includes(day);
+              const dayEvents = day ? (eventsByDay[day] || []) : [];
+              const hasConfirmed = dayEvents.some(e => signups?.confirmed?.includes(e.id));
+              const hasWaitlisted = dayEvents.some(e => signups?.waitlisted?.includes(e.id));
+              const hasFireWatch = dayEvents.some(e => e.type === "FIRE WATCH");
               return (
-                <div key={di} style={{
-                  minHeight: 52, padding: "4px 3px",
-                  borderRadius: 6,
-                  border: isConfirmed ? "2px solid #1D4ED8" : "1px solid #F1F5F9",
-                  background: ev?.urgent ? "#FEF2F2" : isConfirmed ? "#EFF6FF" : "#fff",
-                }}>
+                <div key={di}
+                  onClick={() => {
+                    if (day && dayEvents.length > 0) setSelectedEvent(dayEvents);
+                  }}
+                  style={{
+                    minHeight:52, padding:"4px 3px",
+                    borderRadius:6,
+                    border: hasConfirmed ? "2px solid #1D4ED8" : hasWaitlisted ? "2px solid #7C3AED" : "1px solid #F1F5F9",
+                    background: hasFireWatch ? "#FEF2F2" : hasConfirmed ? "#EFF6FF" : hasWaitlisted ? "#EDE9FE" : day && dayEvents.length > 0 ? "#F8FAFC" : "#fff",
+                    cursor: day && dayEvents.length > 0 ? "pointer" : "default",
+                  }}>
                   {day && (
                     <>
-                      <div style={{ fontSize: 11, fontWeight: isConfirmed ? 800 : 500, color: isConfirmed ? "#1D4ED8" : "#374151" }}>{day}</div>
-                      {ev && (
-                        <div style={{
-                          fontSize: 9, fontWeight: 600, marginTop: 2,
-                          color: ev.urgent ? "#DC2626" : ev.color || "#64748B",
-                          overflow: "hidden", lineHeight: 1.2,
-                        }}>{ev.label}</div>
+                      <div style={{
+                        fontSize:11, fontWeight: isToday(day) ? 900 : hasConfirmed ? 800 : 500,
+                        color: isToday(day) ? "#fff" : hasConfirmed ? "#1D4ED8" : "#374151",
+                        background: isToday(day) ? "#1D4ED8" : "none",
+                        borderRadius: isToday(day) ? "50%" : 0,
+                        width: isToday(day) ? 18 : "auto",
+                        height: isToday(day) ? 18 : "auto",
+                        display: isToday(day) ? "flex" : "block",
+                        alignItems: "center", justifyContent: "center",
+                      }}>{day}</div>
+                      {dayEvents.slice(0,2).map((ev, idx) => (
+                        <div key={idx} style={{
+                          fontSize:8, fontWeight:600, marginTop:2,
+                          color: typeColors[ev.type] || "#64748B",
+                          overflow:"hidden", lineHeight:1.2,
+                          whiteSpace:"nowrap", textOverflow:"ellipsis",
+                        }}>
+                          {ev.title.length > 8 ? ev.title.slice(0,8)+"…" : ev.title}
+                        </div>
+                      ))}
+                      {dayEvents.length > 2 && (
+                        <div style={{ fontSize:8, color:"#94A3B8", marginTop:1 }}>+{dayEvents.length-2} more</div>
                       )}
                     </>
                   )}
@@ -1198,6 +1259,71 @@ function Schedule({ signups }) {
           </div>
         ))}
       </div>
+
+      {/* Legend */}
+      <div style={{ display:"flex", gap:12, marginTop:12, flexWrap:"wrap" }}>
+        {[["#EFF6FF","#1D4ED8","Confirmed"],["#EDE9FE","#7C3AED","Waitlisted"],["#FEF2F2","#DC2626","Fire Watch"],["#F8FAFC","#64748B","Event"]].map(([bg,fg,label]) => (
+          <div key={label} style={{ display:"flex", alignItems:"center", gap:5 }}>
+            <div style={{ width:12, height:12, borderRadius:3, background:bg, border:`1.5px solid ${fg}` }} />
+            <span style={{ fontSize:11, color:"#64748B" }}>{label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Event detail modal */}
+      {selectedEvent && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:500, display:"flex", alignItems:"flex-end", justifyContent:"center", fontFamily:"'DM Sans', system-ui, sans-serif" }}>
+          <div style={{ background:"#fff", borderRadius:"16px 16px 0 0", padding:"24px 20px 40px", width:"100%", maxWidth:430, boxShadow:"0 -8px 40px rgba(0,0,0,0.2)" }}>
+            <div style={{ width:40, height:4, borderRadius:99, background:"#E2E8F0", margin:"0 auto 20px" }} />
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+              <div style={{ fontSize:16, fontWeight:800, color:"#0F172A" }}>
+                {selectedEvent.length > 1 ? `${selectedEvent.length} Events This Day` : selectedEvent[0].title}
+              </div>
+              <button onClick={() => setSelectedEvent(null)} style={{ background:"#F1F5F9", border:"none", borderRadius:"50%", width:32, height:32, fontSize:16, color:"#64748B", cursor:"pointer" }}>✕</button>
+            </div>
+            <div style={{ maxHeight:360, overflowY:"auto" }}>
+              {selectedEvent.map(ev => {
+                const isConfirmed = signups?.confirmed?.includes(ev.id);
+                const isWaitlisted = signups?.waitlisted?.includes(ev.id);
+                const queuePos = signups?.getQueuePosition?.(ev.id);
+                const tc = typeColors[ev.type] || "#64748B";
+                const graceActive = ev.postedAt && (Date.now() - ev.postedAt) < GRACE_PERIOD_MS;
+                const graceHrs = graceActive ? Math.ceil((GRACE_PERIOD_MS - (Date.now() - ev.postedAt)) / 3600000) : 0;
+                return (
+                  <div key={ev.id} style={{ background:"#F8FAFC", borderRadius:12, padding:14, marginBottom:10, border:`1.5px solid ${tc}22` }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
+                      <div style={{ fontSize:14, fontWeight:800, color:"#0F172A", flex:1, marginRight:8 }}>{ev.title}</div>
+                      <span style={{ fontSize:9, fontWeight:800, color:tc, background:tc+"18", padding:"3px 7px", borderRadius:4, flexShrink:0 }}>{ev.type}</span>
+                    </div>
+                    {[["📅","Date",ev.date],["🕐","Time",ev.time],["👥","Slots",`${ev.slots - ev.filled} of ${ev.slots} remaining`],
+                      ...(ev.location ? [["📍","Location",ev.location]] : []),
+                    ].map(([icon,label,value]) => (
+                      <div key={label} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 0", borderBottom:"1px solid #F1F5F9" }}>
+                        <span style={{ fontSize:12, width:18 }}>{icon}</span>
+                        <span style={{ fontSize:11, color:"#94A3B8", fontWeight:600, width:42 }}>{label}</span>
+                        <span style={{ fontSize:12, color:"#0F172A", fontWeight:600 }}>{value}</span>
+                      </div>
+                    ))}
+                    {graceActive && (
+                      <div style={{ marginTop:8, fontSize:11, color:"#0369A1", fontWeight:600, background:"#F0F9FF", padding:"5px 8px", borderRadius:6 }}>
+                        ⏱ Grace period active — {graceHrs}h remaining
+                      </div>
+                    )}
+                    {(isConfirmed || isWaitlisted) && (
+                      <div style={{ marginTop:8, fontSize:11, fontWeight:700,
+                        color: isConfirmed ? "#1D4ED8" : "#7C3AED",
+                        background: isConfirmed ? "#EFF6FF" : "#EDE9FE",
+                        padding:"5px 8px", borderRadius:6 }}>
+                        {isConfirmed ? "✓ You are confirmed for this event" : `⏳ Waitlisted — ${queuePos ? `#${queuePos} in queue` : "in queue"}`}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -3380,7 +3506,7 @@ export default function App() {
           />
         : nav === "dashboard" && <Dashboard officer={officer} signups={signups} handleSignup={handleSignup} handleWaitlist={handleWaitlist} handleCancel={handleCancel} submitCancelRequest={submitCancelRequest} isSgt={isSgtPlus(officer?.rank)} showToast={showToast} startTour={startTour} events={events} />
       }
-      {nav === "schedule"        && <Schedule signups={signups} />}
+      {nav === "schedule"        && <Schedule signups={signups} events={events} />}
       {nav === "slot-release"    && <SlotRelease showToast={showToast} />}
       {nav === "cancel-requests" && <CancelRequests />}
       {nav === "approvals"         && <SgtApprovals cancelRequests={cancelRequests} onApprove={approveCancelRequest} onDeny={denyCancelRequest} officer={officer} />}
