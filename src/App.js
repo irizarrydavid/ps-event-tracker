@@ -1405,7 +1405,8 @@ function Settings({ startTour, officer, openAIKey, setOpenAIKey }) {
           background: "#1D4ED8", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer",
         }}>Launch Guided Tour</button>
       </div>
-      {/* OpenAI Voice card */}
+      {/* OpenAI Voice card — Specialist+ only */}
+      {isSpecialistPlus(officer?.rank) && (
       <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 12, padding: 16, marginBottom: 12 }}>
         <div style={{ fontSize: 10, fontWeight: 800, color: "#94A3B8", letterSpacing: 0.8, marginBottom: 4 }}>AI VOICE NARRATION</div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
@@ -1459,6 +1460,7 @@ function Settings({ startTour, officer, openAIKey, setOpenAIKey }) {
           </span>
         </div>
       </div>
+      )}
 
       {/* Notification preferences */}
       <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 12, padding: 16, marginBottom: 12 }}>
