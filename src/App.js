@@ -974,8 +974,9 @@ function EventCard({ event, signups, onSignup, onWaitlist, onCancel, onRequestCa
 // ═══════════════════════════════════════════════════════════════════════════════
 function Dashboard({ officer, signups, handleSignup, handleWaitlist, handleCancel, submitCancelRequest, isSgt, showToast, startTour, events }) {
   const [tab, setTab] = useState("all");
-  const [cancelModal, setCancelModal] = useState(null); // { eventId, type }
-  const onSignup   = (id) => handleSignup(id);
+  const [cancelModal, setCancelModal] = useState(null);   // { eventId, type }
+  const [signupModal, setSignupModal] = useState(null);   // eventId
+  const onSignup   = (id) => setSignupModal(id);          // open confirm modal instead of direct signup
   const onWaitlist = (id) => handleWaitlist(id);
 
   const filtered = tab === "my"
@@ -1087,6 +1088,18 @@ function Dashboard({ officer, signups, handleSignup, handleWaitlist, handleCance
         <div style={{ textAlign: "center", padding: "40px 20px", color: "#94A3B8", fontSize: 14 }}>
           No events to show in this view.
         </div>
+      )}
+
+      {signupModal && (
+        <SignupConfirmModal
+          event={events.find(e => e.id === signupModal)}
+          officer={officer}
+          onConfirm={() => {
+            handleSignup(signupModal);
+            setSignupModal(null);
+          }}
+          onClose={() => setSignupModal(null)}
+        />
       )}
 
       {cancelModal && (
@@ -1885,6 +1898,143 @@ function FirstLoginPrompt({ officer, onStartTour, onSkip }) {
         </button>
         <div style={{ fontSize: 11, color: "#CBD5E1", marginTop: 12 }}>
           You can always launch the tour from Settings
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SIGN-UP CONFIRMATION MODAL
+// ═══════════════════════════════════════════════════════════════════════════════
+function SignupConfirmModal({ event, officer, onConfirm, onClose }) {
+  if (!event) return null;
+
+  const typeColors = {
+    "COMMENCEMENT": "#7C3AED", "ATHLETICS": "#0369A1", "SPECIAL": "#0F766E",
+    "FIRE WATCH": "#DC2626",  "STUDENT LIFE": "#D97706", "PATROL": "#475569",
+  };
+  const tc = typeColors[event.type] || "#475569";
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)",
+      zIndex: 500, display: "flex", alignItems: "flex-end", justifyContent: "center",
+      fontFamily: "'DM Sans', system-ui, sans-serif",
+    }}>
+      <div style={{
+        background: "#fff", borderRadius: "16px 16px 0 0",
+        padding: "24px 20px 40px", width: "100%", maxWidth: 430,
+        boxShadow: "0 -8px 40px rgba(0,0,0,0.2)",
+      }}>
+        {/* Handle bar */}
+        <div style={{ width: 40, height: 4, borderRadius: 99, background: "#E2E8F0", margin: "0 auto 20px" }} />
+
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: 1, textTransform: "uppercase", marginBottom: 3 }}>
+              CONFIRM SIGN-UP
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 900, color: "#0F172A" }}>
+              {event.title}
+            </div>
+          </div>
+          <button onClick={onClose} style={{
+            background: "#F1F5F9", border: "none", borderRadius: "50%",
+            width: 32, height: 32, fontSize: 16, color: "#64748B",
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+            flexShrink: 0, marginLeft: 10,
+          }}>✕</button>
+        </div>
+
+        {/* Event detail card */}
+        <div style={{
+          background: "#F8FAFC", borderRadius: 12, padding: 16,
+          border: `1.5px solid ${tc}22`, marginBottom: 16,
+        }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+            <span style={{
+              fontSize: 10, fontWeight: 800, letterSpacing: 0.5,
+              background: tc + "18", color: tc, padding: "3px 8px", borderRadius: 4,
+            }}>{event.type}</span>
+            {event.hold && (
+              <span style={{
+                fontSize: 10, fontWeight: 700,
+                background: "#FFFBEB", color: "#D97706", border: "1px solid #FDE68A",
+                padding: "3px 8px", borderRadius: 4,
+              }}>72h Hold</span>
+            )}
+          </div>
+
+          {/* Event info rows */}
+          {[
+            ["📅", "Date", event.date],
+            ["🕐", "Time", event.time],
+            ["👤", "Slots", `${event.slots - event.filled} of ${event.slots} remaining`],
+          ].map(([icon, label, value]) => (
+            <div key={label} style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "6px 0", borderBottom: "1px solid #F1F5F9",
+            }}>
+              <span style={{ fontSize: 14, width: 20, textAlign: "center" }}>{icon}</span>
+              <span style={{ fontSize: 12, color: "#94A3B8", fontWeight: 600, width: 40 }}>{label}</span>
+              <span style={{ fontSize: 13, color: "#0F172A", fontWeight: 700 }}>{value}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Officer signing up */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 10,
+          background: "#EFF6FF", borderRadius: 10, padding: "10px 14px",
+          marginBottom: 16, border: "1px solid #BFDBFE",
+        }}>
+          <div style={{
+            width: 34, height: 34, borderRadius: "50%", background: "#1D4ED8",
+            color: "#fff", fontWeight: 800, fontSize: 12, flexShrink: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            {officer.name.split(" ").map(n => n[0]).join("")}
+          </div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>{officer.name}</div>
+            <div style={{ fontSize: 11, color: "#64748B" }}>{officer.badge} · {officer.rank}</div>
+          </div>
+          <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, color: "#1D4ED8", background: "#DBEAFE", padding: "3px 8px", borderRadius: 4 }}>
+            SIGNING UP
+          </span>
+        </div>
+
+        {/* 72h hold warning */}
+        {event.hold && (
+          <div style={{
+            background: "#FFFBEB", border: "1px solid #FDE68A",
+            borderRadius: 8, padding: "10px 12px", marginBottom: 16,
+          }}>
+            <div style={{ fontSize: 12, color: "#92400E", fontWeight: 600, lineHeight: 1.5 }}>
+              ⚠️ <b>72-Hour Hold:</b> Signing up for this event will place a 72-hour hold on your account. You will not be able to sign up for another event during this period without supervisor approval.
+            </div>
+          </div>
+        )}
+
+        {/* Action buttons */}
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={onClose} style={{
+            flex: 1, padding: "13px 0", borderRadius: 10,
+            border: "1.5px solid #E2E8F0", background: "#fff",
+            color: "#64748B", fontWeight: 700, fontSize: 14, cursor: "pointer",
+          }}>
+            Cancel
+          </button>
+          <button onClick={onConfirm} style={{
+            flex: 2, padding: "13px 0", borderRadius: 10, border: "none",
+            background: "#1D4ED8", color: "#fff", fontWeight: 800,
+            fontSize: 15, cursor: "pointer",
+            boxShadow: "0 4px 14px rgba(29,78,216,0.35)",
+          }}>
+            Confirm Sign-Up ✓
+          </button>
         </div>
       </div>
     </div>
