@@ -1074,6 +1074,8 @@ function TopBar({ title, officer, menuOpen, setMenuOpen, nav, setNav, notifCount
             ["Dashboard","dashboard"],["Calendar","schedule"],
             ["Slot Release","slot-release"],["Cancel Requests","cancel-requests"],
             ...(isSgtPlus(officer?.rank) ? [["Approvals Queue","approvals"]] : []),
+            ...(isSpecialistPlus(officer?.rank) ? [["Analytics","analytics"]] : []),
+            ["My Schedule","myschedule"],
             ["FAQ","faq"],["Settings","settings"],
           ].map(([label, target]) => (
             <div key={target} onClick={() => { setNav(target); setMenuOpen(false); }} style={{
@@ -1954,7 +1956,7 @@ function Profile({ officer }) {
   );
 }
 
-function Settings({ startTour, officer, openAIKey, setOpenAIKey }) {
+function Settings({ startTour, officer, openAIKey, setOpenAIKey, darkMode, setDarkMode }) {
   const [notifs, setNotifs] = useState({
     newEvent: true, approvals: true, slotRelease: true, cancelAlerts: true, emergencyOpenings: true,
   });
@@ -2014,6 +2016,23 @@ function Settings({ startTour, officer, openAIKey, setOpenAIKey }) {
           background: "#1D4ED8", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer",
         }}>Launch Guided Tour</button>
       </div>
+      {/* Dark Mode */}
+      <div style={{ background:"#fff", border:"1px solid #E2E8F0", borderRadius:12, padding:16, marginBottom:12 }}>
+        <div style={{ fontSize:10, fontWeight:800, color:"#94A3B8", letterSpacing:0.8, marginBottom:10 }}>DISPLAY</div>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <div>
+            <div style={{ fontWeight:700, fontSize:14 }}>🌙 Dark Mode</div>
+            <div style={{ fontSize:11, color:"#64748B", marginTop:2 }}>
+              {darkMode ? "Dark theme active — easier on eyes at night" : "Light theme active"}
+            </div>
+          </div>
+          <Toggle checked={darkMode} onChange={setDarkMode} color="#0F172A" />
+        </div>
+      </div>
+
+      {/* Days Off / Availability */}
+      <DaysOffSettings officer={officer} />
+
       {/* OpenAI Voice card — Specialist+ only */}
       {isSpecialistPlus(officer?.rank) && (
       <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 12, padding: 16, marginBottom: 12 }}>
@@ -3081,6 +3100,16 @@ function SupervisorDashboard({ officer, events, setEvents, confirmed, setConfirm
                     Cancel Event
                   </button>
                   <button onClick={() => {
+                    const newDate = prompt("New date for duplicate (e.g. Jun 15):");
+                    if (newDate) {
+                      postEvent({ ...ev, title: ev.title, date: newDate, filled: 0, waitQueue: [] });
+                      logAction(`Duplicated event: ${ev.title} → ${newDate}`);
+                      showToast(`Event duplicated for ${newDate}. Officers notified.`, "success");
+                    }
+                  }} style={{ padding:"7px 12px", borderRadius:6, border:"1.5px solid #1D4ED8", background:"#fff", color:"#1D4ED8", fontWeight:700, fontSize:11, cursor:"pointer" }}>
+                    Duplicate
+                  </button>
+                  <button onClick={() => {
                     const newDate = prompt("New date (e.g. May 30):");
                     const newTime = prompt("New time (e.g. 0800-1600):");
                     if (newDate && newTime) { rescheduleEvent(ev.id, newDate, newTime); logAction(`Rescheduled ${ev.title} to ${newDate} ${newTime}`); }
@@ -3689,6 +3718,394 @@ function FireWatchForm({ officer, onPost, onClose }) {
   );
 }
 
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 1. ADMIN ANALYTICS DASHBOARD
+// ═══════════════════════════════════════════════════════════════════════════════
+function AnalyticsDashboard({ events, confirmed, cancelRequests, officers, darkMode }) {
+  const dm = (l, d) => darkMode ? d : l;
+  const [period, setPeriod] = useState("all");
+
+  // ── Compute stats ────────────────────────────────────────────────────────
+  const totalEvents     = events.length;
+  const totalSlots      = events.reduce((a, e) => a + e.slots, 0);
+  const totalFilled     = events.reduce((a, e) => a + e.filled, 0);
+  const fillRate        = totalSlots > 0 ? Math.round((totalFilled / totalSlots) * 100) : 0;
+  const totalWaitlisted = events.reduce((a, e) => a + (e.waitQueue?.length || 0), 0);
+  const totalCancels    = cancelRequests.filter(r => r.status === "approved").length;
+  const pendingRequests = cancelRequests.filter(r => r.status === "pending").length;
+
+  // Events by type
+  const byType = events.reduce((acc, ev) => {
+    acc[ev.type] = (acc[ev.type] || 0) + 1;
+    return acc;
+  }, {});
+
+  // Fill rate by event
+  const fillByEvent = events.map(ev => ({
+    title: ev.title.length > 18 ? ev.title.slice(0, 18) + "…" : ev.title,
+    rate: ev.slots > 0 ? Math.round((ev.filled / ev.slots) * 100) : 0,
+    filled: ev.filled,
+    slots: ev.slots,
+    type: ev.type,
+  })).sort((a, b) => b.rate - a.rate);
+
+  // Type colors
+  const typeColors = {
+    "COMMENCEMENT": "#7C3AED", "ATHLETICS": "#0369A1", "SPECIAL": "#0F766E",
+    "FIRE WATCH": "#DC2626",  "STUDENT LIFE": "#D97706", "PATROL": "#475569",
+    "BPAC": "#DB2777",        "OTHER": "#64748B",
+  };
+
+  const bg   = dm("#fff",    "#1E293B");
+  const bg2  = dm("#F8FAFC", "#0F172A");
+  const text = dm("#0F172A", "#F1F5F9");
+  const sub  = dm("#64748B", "#94A3B8");
+  const bdr  = dm("#E2E8F0", "#334155");
+
+  const StatCard = ({ label, value, sub: subText, color = "#1D4ED8", icon }) => (
+    <div style={{ background: bg, borderRadius: 12, padding: "14px 16px", border: `1px solid ${bdr}`, flex: 1, minWidth: 0 }}>
+      <div style={{ fontSize: 20, marginBottom: 4 }}>{icon}</div>
+      <div style={{ fontSize: 22, fontWeight: 900, color }}>{value}</div>
+      <div style={{ fontSize: 11, fontWeight: 700, color: text, marginTop: 2 }}>{label}</div>
+      {subText && <div style={{ fontSize: 10, color: sub, marginTop: 2 }}>{subText}</div>}
+    </div>
+  );
+
+  return (
+    <div style={{ padding: "16px 14px", fontFamily: DS.fontSans, background: bg2, minHeight: "100vh" }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: sub, letterSpacing: 1, textTransform: "uppercase", marginBottom: 2 }}>SUPERVISOR PORTAL</div>
+      <div style={{ fontSize: 22, fontWeight: 900, color: text, marginBottom: 2 }}>Analytics</div>
+      <div style={{ fontSize: 13, color: sub, marginBottom: 16 }}>OT Event Performance — Bernard Baruch College</div>
+
+      {/* Stats row */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+        <StatCard icon="📋" label="Total Events"    value={totalEvents}    color="#1D4ED8" subText={`${totalSlots} total slots`} />
+        <StatCard icon="✅" label="Fill Rate"        value={`${fillRate}%`} color="#059669" subText={`${totalFilled}/${totalSlots} filled`} />
+        <StatCard icon="⏳" label="Waitlisted"       value={totalWaitlisted} color="#7C3AED" subText="across all events" />
+        <StatCard icon="🔄" label="Cancellations"   value={totalCancels}   color="#DC2626" subText={`${pendingRequests} pending`} />
+      </div>
+
+      {/* Fill rate per event */}
+      <div style={{ background: bg, borderRadius: 12, padding: 16, border: `1px solid ${bdr}`, marginBottom: 14 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: sub, letterSpacing: 0.8, marginBottom: 12 }}>SLOT FILL RATE BY EVENT</div>
+        {fillByEvent.map((ev, i) => (
+          <div key={i} style={{ marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: text }}>{ev.title}</span>
+              <span style={{ fontSize: 12, fontWeight: 800, color: ev.rate === 100 ? "#059669" : ev.rate >= 50 ? "#1D4ED8" : "#DC2626" }}>{ev.rate}%</span>
+            </div>
+            <div style={{ height: 6, background: dm("#F1F5F9", "#334155"), borderRadius: 99 }}>
+              <div style={{
+                height: "100%", borderRadius: 99, width: `${ev.rate}%`,
+                background: ev.rate === 100 ? "#059669" : ev.rate >= 50 ? "#1D4ED8" : "#DC2626",
+                transition: "width 0.6s ease",
+              }} />
+            </div>
+            <div style={{ fontSize: 10, color: sub, marginTop: 2 }}>{ev.filled} of {ev.slots} slots filled · {ev.type}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Events by type */}
+      <div style={{ background: bg, borderRadius: 12, padding: 16, border: `1px solid ${bdr}`, marginBottom: 14 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: sub, letterSpacing: 0.8, marginBottom: 12 }}>EVENTS BY TYPE</div>
+        {Object.entries(byType).sort((a, b) => b[1] - a[1]).map(([type, count]) => (
+          <div key={type} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+            <div style={{ width: 10, height: 10, borderRadius: "50%", background: typeColors[type] || "#64748B", flexShrink: 0 }} />
+            <span style={{ fontSize: 13, color: text, flex: 1 }}>{type}</span>
+            <span style={{ fontSize: 13, fontWeight: 800, color: typeColors[type] || "#64748B" }}>{count}</span>
+            <div style={{ width: 80, height: 6, background: dm("#F1F5F9","#334155"), borderRadius: 99 }}>
+              <div style={{ height: "100%", borderRadius: 99, width: `${(count/totalEvents)*100}%`, background: typeColors[type] || "#64748B" }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Cancel request breakdown */}
+      <div style={{ background: bg, borderRadius: 12, padding: 16, border: `1px solid ${bdr}`, marginBottom: 14 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: sub, letterSpacing: 0.8, marginBottom: 12 }}>CANCEL REQUEST BREAKDOWN</div>
+        {[["Approved", cancelRequests.filter(r=>r.status==="approved").length, "#059669"],
+          ["Denied",   cancelRequests.filter(r=>r.status==="denied").length,   "#DC2626"],
+          ["Pending",  cancelRequests.filter(r=>r.status==="pending").length,  "#D97706"]].map(([label, count, color]) => (
+          <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${bdr}` }}>
+            <span style={{ fontSize: 13, color: text }}>{label}</span>
+            <Badge variant={label === "Approved" ? "success" : label === "Denied" ? "danger" : "warning"}>{count}</Badge>
+          </div>
+        ))}
+      </div>
+
+      {/* Officer participation */}
+      <div style={{ background: bg, borderRadius: 12, padding: 16, border: `1px solid ${bdr}` }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: sub, letterSpacing: 0.8, marginBottom: 12 }}>OFFICER ROSTER — {officers.length} TOTAL</div>
+        {officers.map((off, i) => {
+          const signupCount = confirmed.filter(c => {
+            const ev = events.find(e => e.id === c.eventId);
+            return ev;
+          }).length;
+          return (
+            <div key={off.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: i < officers.length - 1 ? `1px solid ${bdr}` : "none" }}>
+              <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#1D4ED8", color: "#fff", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                {off.name.split(" ").map(n => n[0]).join("")}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: text }}>{off.name}</div>
+                <div style={{ fontSize: 10, color: sub }}>{off.badge} · {off.rank}</div>
+              </div>
+              <Badge variant="primary">{off.rank.split(" ")[0]}</Badge>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 2. MY SCHEDULE VIEW (Officer personal timeline)
+// ═══════════════════════════════════════════════════════════════════════════════
+function MySchedule({ officer, confirmed, events, cancelRequests, darkMode }) {
+  const dm = (l, d) => darkMode ? d : l;
+  const [filter, setFilter] = useState("all");
+
+  const bg   = dm("#fff",    "#1E293B");
+  const bg2  = dm("#F8FAFC", "#0F172A");
+  const text = dm("#0F172A", "#F1F5F9");
+  const sub  = dm("#64748B", "#94A3B8");
+  const bdr  = dm("#E2E8F0", "#334155");
+
+  const myEvents = confirmed.map(c => {
+    const ev = events.find(e => e.id === c.eventId);
+    return ev ? { ...ev, signedAt: c.signedAt } : null;
+  }).filter(Boolean);
+
+  const myRequests = cancelRequests.filter(r => r.officerId === officer?.id);
+  const myWaitlist = events.filter(ev => ev.waitQueue?.some(w => w.officerId === officer?.id));
+
+  const filtered = filter === "confirmed" ? myEvents
+    : filter === "waitlist" ? myWaitlist
+    : filter === "requests" ? myRequests.map(r => ({ ...r, isRequest: true }))
+    : [...myEvents.map(e => ({...e, kind:"confirmed"})),
+       ...myWaitlist.map(e => ({...e, kind:"waitlist"})),
+       ...myRequests.map(r => ({...r, kind:"request"}))];
+
+  const typeColors = { "COMMENCEMENT":"#7C3AED","ATHLETICS":"#0369A1","SPECIAL":"#0F766E","FIRE WATCH":"#DC2626","STUDENT LIFE":"#D97706","PATROL":"#475569","BPAC":"#DB2777","OTHER":"#64748B" };
+
+  return (
+    <div style={{ padding:"16px 14px", fontFamily:DS.fontSans, background:bg2, minHeight:"100vh" }}>
+      <div style={{ fontSize:11, fontWeight:700, color:sub, letterSpacing:1, textTransform:"uppercase", marginBottom:2 }}>MY ASSIGNMENTS</div>
+      <div style={{ fontSize:22, fontWeight:900, color:text, marginBottom:2 }}>My Schedule</div>
+      <div style={{ fontSize:13, color:sub, marginBottom:16 }}>{officer?.name} · {officer?.badge}</div>
+
+      {/* Summary pills */}
+      <div style={{ display:"flex", gap:8, marginBottom:16, flexWrap:"wrap" }}>
+        {[[`${myEvents.length} Confirmed`, "#1D4ED8", GREEN_PALE],
+          [`${myWaitlist.length} Waitlisted`, "#7C3AED", "#EDE9FE"],
+          [`${myRequests.filter(r=>r.status==="pending").length} Pending`, "#D97706", "#FFFBEB"]].map(([label, color, bg3]) => (
+          <div key={label} style={{ padding:"8px 14px", borderRadius:10, background:bg3, border:`1px solid ${color}33` }}>
+            <span style={{ fontSize:13, fontWeight:800, color }}>{label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Filter tabs */}
+      <div style={{ display:"flex", gap:0, borderBottom:`2px solid ${bdr}`, marginBottom:14 }}>
+        {[["All","all"],["Confirmed","confirmed"],["Waitlist","waitlist"],["Requests","requests"]].map(([label,val]) => (
+          <button key={val} onClick={() => setFilter(val)} style={{
+            flex:1, padding:"9px 0", border:"none", background:"none",
+            fontWeight:700, fontSize:11, cursor:"pointer",
+            color: filter===val ? "#1D4ED8" : sub,
+            borderBottom: filter===val ? "2px solid #1D4ED8" : "2px solid transparent",
+            marginBottom:-2,
+          }}>{label}</button>
+        ))}
+      </div>
+
+      {filtered.length === 0 && (
+        <div style={{ textAlign:"center", padding:"40px 20px" }}>
+          <div style={{ fontSize:32, marginBottom:10 }}>📭</div>
+          <div style={{ fontSize:14, color:sub }}>Nothing to show here yet.</div>
+        </div>
+      )}
+
+      {filtered.map((item, i) => {
+        const isRequest = item.isRequest || item.kind === "request";
+        const isWaitlist = item.kind === "waitlist";
+        const tc = typeColors[item.type] || "#64748B";
+        return (
+          <div key={i} className="card-hover fade-in" style={{ background:bg, borderRadius:12, padding:14, border:`1px solid ${bdr}`, marginBottom:10, boxShadow:DS.shadowSm }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
+              <div style={{ flex:1, marginRight:8 }}>
+                <div style={{ fontSize:14, fontWeight:800, color:text }}>{item.title || item.eventTitle}</div>
+                {!isRequest && <div style={{ fontSize:12, color:sub, marginTop:2 }}>{item.date} · {item.time}</div>}
+              </div>
+              {isRequest
+                ? <Badge variant={item.status==="approved"?"success":item.status==="denied"?"danger":"warning"}>{item.status?.toUpperCase()}</Badge>
+                : isWaitlist
+                  ? <Badge variant="default">WAITLISTED</Badge>
+                  : <Badge variant="primary">CONFIRMED</Badge>}
+            </div>
+            {isRequest && (
+              <div style={{ fontSize:12, color:sub, background:dm("#F8FAFC","#0F172A"), padding:"7px 10px", borderRadius:8 }}>
+                <b>Reason:</b> {item.reason}
+              </div>
+            )}
+            {!isRequest && item.type && (
+              <span style={{ fontSize:10, fontWeight:700, color:tc, background:tc+"18", padding:"2px 8px", borderRadius:4 }}>{item.type}</span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 3. EVENT DETAIL PAGE
+// ═══════════════════════════════════════════════════════════════════════════════
+function EventDetail({ event, officer, signups, onSignup, onBack, darkMode }) {
+  const dm = (l, d) => darkMode ? d : l;
+  if (!event) return null;
+
+  const bg   = dm("#fff",    "#1E293B");
+  const bg2  = dm("#F8FAFC", "#0F172A");
+  const text = dm("#0F172A", "#F1F5F9");
+  const sub  = dm("#64748B", "#94A3B8");
+  const bdr  = dm("#E2E8F0", "#334155");
+
+  const isSigned   = signups?.confirmed?.includes(event.id);
+  const isWaited   = signups?.waitlisted?.includes(event.id);
+  const isFull     = event.filled >= event.slots;
+  const queuePos   = signups?.getQueuePosition?.(event.id);
+  const graceActive = event.postedAt && (Date.now() - event.postedAt) < GRACE_PERIOD_MS;
+  const graceHrs   = graceActive ? Math.ceil((GRACE_PERIOD_MS - (Date.now() - event.postedAt)) / 3600000) : 0;
+  const graceLocked = signups?.gracePeriodBlocksSignup?.(event);
+
+  const typeColors = { "COMMENCEMENT":"#7C3AED","ATHLETICS":"#0369A1","SPECIAL":"#0F766E","FIRE WATCH":"#DC2626","STUDENT LIFE":"#D97706","PATROL":"#475569","BPAC":"#DB2777","OTHER":"#64748B" };
+  const tc = typeColors[event.type] || "#64748B";
+  const fillPct = event.slots > 0 ? Math.min(100, Math.round((event.filled/event.slots)*100)) : 0;
+
+  return (
+    <div className="fade-in" style={{ padding:"16px 14px", fontFamily:DS.fontSans, background:bg2, minHeight:"100vh" }}>
+      {/* Back button */}
+      <button onClick={onBack} style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", color:sub, fontSize:13, fontWeight:700, cursor:"pointer", marginBottom:16, padding:0 }}>
+        ‹ Back to Events
+      </button>
+
+      {/* Hero card */}
+      <div style={{ background:bg, borderRadius:16, padding:20, border:`1px solid ${bdr}`, marginBottom:14, boxShadow:DS.shadowMd }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12 }}>
+          <span style={{ fontSize:10, fontWeight:800, color:tc, background:tc+"18", padding:"3px 8px", borderRadius:4 }}>{event.type}</span>
+          {isSigned && <Badge variant="primary">✓ You're Confirmed</Badge>}
+          {isWaited && <Badge variant="default">⏳ #{queuePos} in Queue</Badge>}
+        </div>
+        <div style={{ fontSize:22, fontWeight:900, color:text, marginBottom:4 }}>{event.title}</div>
+        <div style={{ fontSize:13, color:sub, marginBottom:16 }}>Posted {event.postedAt ? Math.floor((Date.now()-event.postedAt)/3600000)+"h ago" : "recently"}</div>
+
+        {/* Info rows */}
+        {[["📅","Date",event.date],["🕐","Time",event.time],
+          ...(event.location ? [["📍","Location",event.location]] : []),
+          ["👥","Slots",`${event.slots - event.filled} of ${event.slots} remaining`],
+          ...(event.notes ? [["📝","Notes",event.notes]] : []),
+        ].map(([icon,label,value]) => (
+          <div key={label} style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"9px 0", borderBottom:`1px solid ${bdr}` }}>
+            <span style={{ fontSize:15, width:22, flexShrink:0 }}>{icon}</span>
+            <span style={{ fontSize:12, color:sub, fontWeight:600, width:60, flexShrink:0 }}>{label}</span>
+            <span style={{ fontSize:13, color:text, fontWeight:600 }}>{value}</span>
+          </div>
+        ))}
+
+        {/* Fill rate bar */}
+        <div style={{ marginTop:14 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:5 }}>
+            <span style={{ fontSize:11, fontWeight:700, color:sub }}>SLOT AVAILABILITY</span>
+            <span style={{ fontSize:11, fontWeight:800, color: fillPct===100?"#059669":"#1D4ED8" }}>{fillPct}% filled</span>
+          </div>
+          <div style={{ height:8, background:dm("#F1F5F9","#334155"), borderRadius:99 }}>
+            <div style={{ height:"100%", borderRadius:99, width:`${fillPct}%`, background: fillPct===100?"#059669":"#1D4ED8", transition:"width 0.5s ease" }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Grace period notice */}
+      {graceActive && (
+        <div style={{ background:"#F0F9FF", border:"1px solid #BAE6FD", borderRadius:10, padding:"10px 14px", marginBottom:14 }}>
+          <div style={{ fontSize:12, color:"#0369A1", fontWeight:700 }}>⏱ Grace period active — {graceHrs}h remaining</div>
+          <div style={{ fontSize:11, color:"#64748B", marginTop:3 }}>Per Rodney Memo: only one sign-up allowed during the 72-hour window.</div>
+        </div>
+      )}
+
+      {/* Action button */}
+      <div style={{ padding:"0 0 20px" }}>
+        {isSigned ? (
+          <Button variant="secondary" fullWidth style={{ borderRadius:10, padding:"14px 0" }}>✓ You are confirmed for this event</Button>
+        ) : isWaited ? (
+          <Button variant="secondary" fullWidth style={{ borderRadius:10, padding:"14px 0" }}>⏳ You are #{queuePos} on the waitlist</Button>
+        ) : isFull ? (
+          <Button variant="primary" fullWidth style={{ borderRadius:10, padding:"14px 0", background:"#7C3AED" }} onClick={() => onSignup(event.id, "waitlist")}>Join Waitlist</Button>
+        ) : graceLocked ? (
+          <Button disabled fullWidth style={{ borderRadius:10, padding:"14px 0" }}>🔒 Grace Period Active</Button>
+        ) : (
+          <Button variant="primary" fullWidth style={{ borderRadius:10, padding:"14px 0", boxShadow:"0 4px 14px rgba(29,78,216,0.35)" }} onClick={() => onSignup(event.id, "signup")}>Sign Up for This Event</Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 4. DUPLICATE EVENT (added to SupervisorDashboard All Events tab)
+// — Built inline as a function used inside SupervisorDashboard
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── Days Off Settings Component ──────────────────────────────────────────────
+function DaysOffSettings({ officer }) {
+  const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const [daysOff, setDaysOff] = useState([0, 6]); // default: Sun + Sat off
+
+  const toggleDay = (dayIdx) => {
+    setDaysOff(prev =>
+      prev.includes(dayIdx) ? prev.filter(d => d !== dayIdx) : [...prev, dayIdx]
+    );
+  };
+
+  return (
+    <div style={{ background:"#fff", border:"1px solid #E2E8F0", borderRadius:12, padding:16, marginBottom:12 }}>
+      <div style={{ fontSize:10, fontWeight:800, color:"#94A3B8", letterSpacing:0.8, marginBottom:4 }}>RECURRING DAYS OFF</div>
+      <div style={{ fontSize:12, color:"#64748B", marginBottom:12 }}>
+        Select the days you are regularly unavailable for OT. Supervisors can see your availability when posting.
+      </div>
+      <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+        {DAYS.map((day, idx) => {
+          const isOff = daysOff.includes(idx);
+          return (
+            <button key={day} onClick={() => toggleDay(idx)} style={{
+              padding:"8px 12px", borderRadius:8, border:"none",
+              background: isOff ? "#FEF2F2" : "#F0FDF4",
+              color: isOff ? "#DC2626" : "#059669",
+              fontSize:12, fontWeight:700, cursor:"pointer",
+              border: isOff ? "1.5px solid #FECACA" : "1.5px solid #A7F3D0",
+              transition:"all 0.15s ease",
+            }}>
+              {isOff ? "✕" : "✓"} {day.slice(0,3)}
+            </button>
+          );
+        })}
+      </div>
+      <div style={{ marginTop:10, fontSize:11, color:"#94A3B8" }}>
+        {daysOff.length === 0
+          ? "No recurring days off set — available every day"
+          : `Unavailable on: ${daysOff.map(d => DAYS[d]).join(", ")}`}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 5 & 6. DARK MODE (in Settings) + OFFICER AVAILABILITY (recurring days off)
+// — Both added to the existing Settings component
+// ═══════════════════════════════════════════════════════════════════════════════
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // ROOT APP
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -3705,6 +4122,16 @@ export default function App() {
   const [toast, setToast]       = useState(null);
   const [tourState, setTourState] = useState(null);
   const [notifOpen, setNotifOpen]   = useState(false);
+  const [darkMode, setDarkMode]     = useState(false);
+
+  // Apply dark mode to body
+  useEffect(() => {
+    document.body.style.background = darkMode ? "#0F172A" : "#F1F5F9";
+    document.body.style.color      = darkMode ? "#F1F5F9" : "#0F172A";
+  }, [darkMode]);
+
+  // Dark mode color helper — use throughout app
+  const dm = (light, dark) => darkMode ? dark : light;
   const [openAIKey, setOpenAIKey]   = useState("");
 
   // ── Cancel requests & slot releases pending approval ─────────────────────
@@ -4118,8 +4545,10 @@ export default function App() {
       {nav === "cancel-requests" && <CancelRequests />}
       {nav === "approvals"         && <SgtApprovals cancelRequests={cancelRequests} onApprove={approveCancelRequest} onDeny={denyCancelRequest} officer={officer} />}
       {nav === "faq"             && <FAQ setNav={setNav} />}
+      {nav === "analytics"      && isSpecialistPlus(officer?.rank) && <AnalyticsDashboard events={events} confirmed={confirmed} cancelRequests={cancelRequests} officers={OFFICERS} darkMode={darkMode} />}
+      {nav === "myschedule"     && <MySchedule officer={officer} confirmed={confirmed} events={events} cancelRequests={cancelRequests} darkMode={darkMode} />}
       {nav === "profile"         && <Profile officer={officer} />}
-      {nav === "settings"        && <Settings startTour={startTour} officer={officer} openAIKey={openAIKey} setOpenAIKey={setOpenAIKey} />}
+      {nav === "settings"        && <Settings startTour={startTour} officer={officer} openAIKey={openAIKey} setOpenAIKey={setOpenAIKey} darkMode={darkMode} setDarkMode={setDarkMode} />}
       {toast && <Toast msg={toast.msg} type={toast.type} onDismiss={() => setToast(null)} />}
 
       {/* First-login tour prompt */}
