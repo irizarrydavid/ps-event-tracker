@@ -1657,7 +1657,7 @@ function FAQ({ setNav }) {
       a:"<b>During the 72-hour grace period</b> — No. You are limited to one sign-up while the grace window is active. <b>After 72 hours</b> — Yes, you may sign up for additional open events. The Sign Up button will be locked with a 🔒 icon if the grace period restricts you.",
       cta:null },
     { id:"su4", cat:"signup", icon:"📋", q:"What happens when an event is full?",
-      a:"If all slots are filled, the Sign Up button changes to <b>Join Waitlist</b>. Your position in the queue is based entirely on the <b>timestamp you joined</b> — first in, first out. No seniority or rank is considered. Your queue position (#1, #2, etc.) displays on the event card.",
+      a:"If all slots are filled, the Sign Up button changes to <b>Join Waitlist</b>. Your position in the queue is based entirely on the <b>timestamp you joined</b> — first in, first out. Position is determined by time only. Your queue position (#1, #2, etc.) displays on the event card.",
       cta:{ label:"View Events", nav:"dashboard" }},
     { id:"su5", cat:"signup", icon:"📋", q:"Can a supervisor sign me up for an event?",
       a:"No. Per department policy, <b>officers must sign themselves up</b>. Supervisors cannot sign up on behalf of another officer. If you are on RDO and wish to volunteer, contact your supervisor directly.",
