@@ -3516,13 +3516,19 @@ export default function App() {
         addNotif(`Slot approved: ${req.officerName}'s cancellation approved. Next officer in queue has been confirmed for ${req.eventTitle}.`, "success");
         // Email promoted officer
         const promotedOfficer = OFFICERS.find(o => o.id === promoted.officerId);
-        if (promotedOfficer) sendEmail("waitlist_promoted", promotedOfficer, ev);
+        if (promotedOfficer) {
+          sendEmail("waitlist_promoted", promotedOfficer, ev);
+          sendPush("waitlist_promoted", promotedOfficer, ev);
+        }
       } else {
         setEvents(prev => prev.map(e => e.id === req.eventId ? { ...e, filled: Math.max(0, e.filled - 1) } : e));
         addNotif(`${req.officerName}'s cancellation approved for ${req.eventTitle}. No officers in waitlist — slot is now open.`, "info");
       }
       // Email requesting officer — request approved
-      if (requestingOfficer) sendEmail("request_approved", requestingOfficer, ev, { reason: req.type });
+      if (requestingOfficer) {
+        sendEmail("request_approved", requestingOfficer, ev, { reason: req.type });
+        sendPush("request_approved", requestingOfficer, ev);
+      }
     }
     showToast(`Request approved. Waitlist updated automatically.`, "success");
   };
@@ -3535,7 +3541,10 @@ export default function App() {
     // Email requesting officer — request denied
     const requestingOfficer = OFFICERS.find(o => o.id === req.officerId);
     const ev = events.find(e => e.id === req.eventId);
-    if (requestingOfficer && ev) sendEmail("request_denied", requestingOfficer, ev, { reason: req.type });
+    if (requestingOfficer && ev) {
+      sendEmail("request_denied", requestingOfficer, ev, { reason: req.type });
+      sendPush("request_denied", requestingOfficer, ev);
+    }
     showToast("Request denied.", "warn");
   };
   // ── Events state (mutable slots + waitQueues) ────────────────────────────
@@ -3548,8 +3557,9 @@ export default function App() {
     const ev = { ...newEvent, id: Date.now(), filled: 0, waitQueue: [], status: "OPEN", postedAt: Date.now() };
     setEvents(prev => [...prev, ev]);
     addNotif(`New event posted: ${ev.title} on ${ev.date}.`, "info");
-    showToast(`Event posted! Notifying all officers by email.`, "success");
+    showToast(`Event posted! Notifying all officers by email and push.`, "success");
     sendEmailToAll("new_event", ev);
+    sendPushToAll("new_event", ev);
   };
 
   // ── Reschedule an event (memo: assigned officers get first opportunity) ────
@@ -3610,6 +3620,27 @@ export default function App() {
       if (off.email) await sendEmail(type, off, event, extra);
     }
   };
+
+  // ── Send browser push notification via /api/push ──────────────────────────
+  const sendPush = async (type, recipientOfficer, event, targetAll = false) => {
+    try {
+      await fetch("/api/push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type,
+          officer: recipientOfficer ? { badge: recipientOfficer.badge, name: recipientOfficer.name, email: recipientOfficer.email } : null,
+          event: event ? { title: event.title, date: event.date, time: event.time, type: event.type, location: event.location } : null,
+          targetAll,
+        }),
+      });
+    } catch (err) {
+      console.warn("Push notification failed:", err.message);
+    }
+  };
+
+  // Send push to all officers
+  const sendPushToAll = async (type, event) => sendPush(type, null, event, true);
 
   const pendingApprovals = cancelRequests.filter(r => r.status === "pending").length;
   const unreadCount = notifications.filter(n => !n.read).length + (isSgtPlus(officer?.rank) ? pendingApprovals : 0);
@@ -3732,7 +3763,27 @@ export default function App() {
     setOfficer(off);
     setAuthStep("app");
     setNav("dashboard");
-    setFirstLogin(true); // show first-login prompt
+    setFirstLogin(true);
+    // Initialize OneSignal push notifications on login
+    if (window.OneSignalDeferred) {
+      window.OneSignalDeferred.push(async (OneSignal) => {
+        try {
+          await OneSignal.init({
+            appId: process.env.REACT_APP_ONESIGNAL_APP_ID || "YOUR_ONESIGNAL_APP_ID",
+            notifyButton: { enable: false },
+            allowLocalhostAsSecureOrigin: true,
+          });
+          await OneSignal.Notifications.requestPermission();
+          await OneSignal.User.addTags({
+            badge: off.badge,
+            rank: off.rank,
+            officer_id: String(off.id),
+          });
+        } catch (err) {
+          console.warn("OneSignal init failed:", err.message);
+        }
+      });
+    }
   };
 
   const handleSignOut = () => {
