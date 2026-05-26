@@ -143,6 +143,69 @@ export default async function handler(req, res) {
         </div>`,
     },
 
+
+    event_reminder_24h: {
+      subject: `Reminder Tomorrow: ${event?.title}`,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff;border-radius:10px;overflow:hidden;border:1px solid #E2E8F0;">
+          <div style="background:#0D2547;padding:24px 28px;">
+            <div style="color:#D4A017;font-size:11px;font-weight:700;letter-spacing:2px;margin-bottom:6px;">CUNY PUBLIC SAFETY DEPARTMENT</div>
+            <div style="color:#fff;font-size:22px;font-weight:800;">Shift Reminder — Tomorrow</div>
+            <div style="color:#93C5FD;font-size:13px;margin-top:4px;">Bernard Baruch College</div>
+          </div>
+          <div style="padding:28px;">
+            <p style="color:#334155;font-size:15px;margin:0 0 20px;">Hi <b>${officer.name.split(" ")[0]}</b>,</p>
+            <p style="color:#334155;font-size:14px;margin:0 0 20px;">This is a reminder that you are scheduled for an overtime assignment <b>tomorrow</b>. Please review the details below.</p>
+            <div style="background:#F1F5F9;border-radius:10px;padding:20px;margin-bottom:24px;border-left:4px solid #1D4ED8;">
+              <div style="font-size:18px;font-weight:800;color:#0F172A;margin-bottom:12px;">${event?.title}</div>
+              <table style="width:100%;border-collapse:collapse;">
+                <tr><td style="padding:5px 0;color:#64748B;font-size:13px;width:100px;">Date</td><td style="color:#0F172A;font-size:13px;font-weight:600;">${event?.date}</td></tr>
+                <tr><td style="padding:5px 0;color:#64748B;font-size:13px;">Time</td><td style="color:#0F172A;font-size:13px;font-weight:600;">${event?.time}</td></tr>
+                <tr><td style="padding:5px 0;color:#64748B;font-size:13px;">Type</td><td style="color:#0F172A;font-size:13px;font-weight:600;">${event?.type}</td></tr>
+              </table>
+            </div>
+            <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:12px 16px;margin-bottom:24px;">
+              <div style="font-size:13px;color:#92400E;font-weight:600;">If you are unable to work this assignment, submit a cancel request through the app immediately.</div>
+            </div>
+            <div style="text-align:center;">
+              <a href="${appUrl}" style="background:#1D4ED8;color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:700;display:inline-block;">Open App</a>
+            </div>
+          </div>
+          <div style="background:#F8FAFC;padding:16px 28px;border-top:1px solid #E2E8F0;">
+            <p style="color:#94A3B8;font-size:11px;margin:0;">CUNY Public Safety — Bernard Baruch College | Automated notification. Do not reply.</p>
+          </div>
+        </div>`,
+    },
+
+    event_reminder_2h: {
+      subject: `Starting in 2 Hours: ${event?.title}`,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff;border-radius:10px;overflow:hidden;border:1px solid #E2E8F0;">
+          <div style="background:#059669;padding:24px 28px;">
+            <div style="color:#D1FAE5;font-size:11px;font-weight:700;letter-spacing:2px;margin-bottom:6px;">CUNY PUBLIC SAFETY DEPARTMENT</div>
+            <div style="color:#fff;font-size:22px;font-weight:800;">Starting in 2 Hours</div>
+            <div style="color:#A7F3D0;font-size:13px;margin-top:4px;">Bernard Baruch College</div>
+          </div>
+          <div style="padding:28px;">
+            <p style="color:#334155;font-size:15px;margin:0 0 20px;">Hi <b>${officer.name.split(" ")[0]}</b>,</p>
+            <p style="color:#334155;font-size:14px;margin:0 0 20px;">Your overtime assignment starts in <b>2 hours</b>. Please ensure you are prepared and on your way.</p>
+            <div style="background:#F0FDF4;border-radius:10px;padding:20px;margin-bottom:24px;border-left:4px solid #059669;">
+              <div style="font-size:18px;font-weight:800;color:#0F172A;margin-bottom:12px;">${event?.title}</div>
+              <table style="width:100%;border-collapse:collapse;">
+                <tr><td style="padding:5px 0;color:#64748B;font-size:13px;width:100px;">Time</td><td style="color:#059669;font-size:15px;font-weight:800;">${event?.time}</td></tr>
+                <tr><td style="padding:5px 0;color:#64748B;font-size:13px;">Type</td><td style="color:#0F172A;font-size:13px;font-weight:600;">${event?.type}</td></tr>
+              </table>
+            </div>
+            <div style="text-align:center;">
+              <a href="${appUrl}" style="background:#059669;color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:700;display:inline-block;">View My Schedule</a>
+            </div>
+          </div>
+          <div style="background:#F8FAFC;padding:16px 28px;border-top:1px solid #E2E8F0;">
+            <p style="color:#94A3B8;font-size:11px;margin:0;">CUNY Public Safety — Bernard Baruch College | Automated notification. Do not reply.</p>
+          </div>
+        </div>`,
+    },
+
     waitlist_promoted: {
       subject: `🎉 You're Confirmed: ${event?.title}`,
       html: `
