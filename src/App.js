@@ -1388,37 +1388,270 @@ function CancelRequests() {
   );
 }
 
-function FAQ() {
-  const categories = [
-    
-    { icon: "📱", title: "App & Account", count: 6 },
-    { icon: "🔄", title: "Cancel Requests & Slot Release", count: 5 },
-    { icon: "🔥", title: "Fire Watch", count: 5 },
-    { icon: "📋", title: "Sign-Up & Events", count: 6 },
-    { icon: "🔑", title: "Supervisors & Overrides", count: 5 },
-    { icon: "📅", title: "Tour & Regular Days Off", count: 6 },
+function FAQ({ setNav }) {
+  const [search, setSearch]         = useState("");
+  const [openItem, setOpenItem]     = useState(null);
+  const [activeCategory, setActiveCategory] = useState("all");
+  const [helpful, setHelpful]       = useState({});
+  const [searched, setSearched]     = useState([]);
+
+  const FAQ_DATA = [
+    // ── Sign-Up & Events ──────────────────────────────────────────────────────
+    { id:"su1", cat:"signup", icon:"📋", q:"How do I sign up for an overtime event?",
+      a:"From the <b>Dashboard</b>, browse available events and tap <b>Sign Up</b> on any open slot. A confirmation sheet will appear showing the event details — tap <b>Confirm Sign-Up</b> to finalize. You'll receive an in-app notification and email confirmation immediately.",
+      cta:{ label:"Go to Dashboard", nav:"dashboard" }},
+    { id:"su2", cat:"signup", icon:"📋", q:"What is the 72-hour grace period?",
+      a:"Per the <b>Rodney Memo</b>, when a new event is posted a 72-hour window begins. During this period every officer may only sign up for <b>one slot total</b> — giving everyone equal opportunity regardless of who sees it first. After 72 hours, officers may sign up for additional events.",
+      cta:null },
+    { id:"su3", cat:"signup", icon:"📋", q:"Can I sign up for more than one event at a time?",
+      a:"<b>During the 72-hour grace period</b> — No. You are limited to one sign-up while the grace window is active. <b>After 72 hours</b> — Yes, you may sign up for additional open events. The Sign Up button will be locked with a 🔒 icon if the grace period restricts you.",
+      cta:null },
+    { id:"su4", cat:"signup", icon:"📋", q:"What happens when an event is full?",
+      a:"If all slots are filled, the Sign Up button changes to <b>Join Waitlist</b>. Your position in the queue is based entirely on the <b>timestamp you joined</b> — first in, first out. No seniority or rank is considered. Your queue position (#1, #2, etc.) displays on the event card.",
+      cta:{ label:"View Events", nav:"dashboard" }},
+    { id:"su5", cat:"signup", icon:"📋", q:"Can a supervisor sign me up for an event?",
+      a:"No. Per department policy, <b>officers must sign themselves up</b>. Supervisors cannot sign up on behalf of another officer. If you are on RDO and wish to volunteer, contact your supervisor directly.",
+      cta:null },
+    { id:"su6", cat:"signup", icon:"📋", q:"Why is the Sign Up button grayed out with a lock icon?",
+      a:"The 🔒 <b>Grace Period Active</b> button means you already have a sign-up during an active 72-hour grace window. Once that grace period expires you'll be able to sign up for additional events automatically.",
+      cta:null },
+
+    // ── Waitlist ──────────────────────────────────────────────────────────────
+    { id:"wl1", cat:"waitlist", icon:"⏳", q:"How does the waitlist work?",
+      a:"When you join the waitlist your <b>exact timestamp is recorded</b>. If a slot opens — through a cancellation approval — the system automatically confirms the officer who joined earliest. No manual selection by supervisors. You'll receive an immediate email and in-app notification when you're confirmed.",
+      cta:null },
+    { id:"wl2", cat:"waitlist", icon:"⏳", q:"How do I know my position in the waitlist?",
+      a:"Your queue position appears directly on the event card — <b>#1 in queue</b>, <b>#2 in queue</b>, etc. This updates in real time as officers ahead of you are confirmed or leave the queue.",
+      cta:{ label:"View My Events", nav:"dashboard" }},
+    { id:"wl3", cat:"waitlist", icon:"⏳", q:"How do I leave the waitlist?",
+      a:"Tap <b>Leave Queue</b> on the event card. You will be immediately removed and the queue reorders automatically. No supervisor approval is needed to leave a waitlist.",
+      cta:null },
+    { id:"wl4", cat:"waitlist", icon:"⏳", q:"Will I get notified when I'm promoted from the waitlist?",
+      a:"Yes — you'll receive both an <b>in-app notification</b> (bell icon) and an <b>email</b> the moment you're confirmed. The email includes event details and a direct link to the app.",
+      cta:null },
+
+    // ── Cancellations ─────────────────────────────────────────────────────────
+    { id:"ca1", cat:"cancel", icon:"🔄", q:"How do I cancel an event I signed up for?",
+      a:"Tap <b>Request Cancel</b> on the event card from your Dashboard. Select a reason from the list and submit. A Sergeant must approve your request before you're removed from the event. <b>You remain assigned until approved</b> — do not assume you're off the event after submitting.",
+      cta:{ label:"View My Sign-ups", nav:"dashboard" }},
+    { id:"ca2", cat:"cancel", icon:"🔄", q:"Can I remove myself from an event directly?",
+      a:"No. Per department policy (Rodney Memo), <b>officers cannot scratch out their own names</b>. All cancellations must go through a supervisor. Submit a cancel request and a Sergeant will review it.",
+      cta:null },
+    { id:"ca3", cat:"cancel", icon:"🔄", q:"What happens to my slot when my cancel is approved?",
+      a:"Your slot is released and the <b>next officer in the waitlist queue is automatically confirmed</b> based on their join timestamp. You'll receive a confirmation email that you've been removed. The promoted officer also receives an email.",
+      cta:null },
+    { id:"ca4", cat:"cancel", icon:"🔄", q:"What if my cancel request is denied?",
+      a:"You remain assigned to the event. You'll receive an in-app notification and email confirming the denial. If you believe the denial was in error, contact your supervisor directly.",
+      cta:null },
+    { id:"ca5", cat:"cancel", icon:"🔄", q:"What is a slot release?",
+      a:"A <b>slot release</b> is a request to give up your confirmed spot so it can be offered to officers on the waitlist. It follows the same approval process as a cancellation — a Sergeant must approve before you're removed.",
+      cta:{ label:"Go to Slot Release", nav:"slot-release" }},
+
+    // ── Fire Watch ────────────────────────────────────────────────────────────
+    { id:"fw1", cat:"firewatch", icon:"🔥", q:"How do I sign up for Fire Watch?",
+      a:"Fire Watch shifts appear as individual event cards on your Dashboard — each shift (overnight, day, evening) is separate. Tap <b>Sign Up</b> on the specific shift you want. You choose exactly which shift to work — you are not automatically assigned a random slot.",
+      cta:{ label:"Browse Events", nav:"dashboard" }},
+    { id:"fw2", cat:"firewatch", icon:"🔥", q:"Where is Fire Watch located?",
+      a:"All Fire Watch assignments are located at the <b>VC Building — 17 Lexington Ave</b>. Report to the main security desk upon arrival.",
+      cta:null },
+    { id:"fw3", cat:"firewatch", icon:"🔥", q:"Can I sign up for multiple Fire Watch shifts?",
+      a:"During the <b>72-hour grace period</b> after posting, you may only sign up for one shift. After the grace period expires you may sign up for additional shifts if slots are still available.",
+      cta:null },
+    { id:"fw4", cat:"firewatch", icon:"🔥", q:"What is the difference between Fire Watch and a regular OT event?",
+      a:"Fire Watch is a <b>separate overtime category</b> from event-based OT (Athletics, Commencement, etc.). Each posted Fire Watch sheet is treated independently per the Rodney Memo. The 72-hour grace period applies to each posting separately.",
+      cta:null },
+
+    // ── App & Account ─────────────────────────────────────────────────────────
+    { id:"ap1", cat:"app", icon:"📱", q:"How do I log in?",
+      a:"Enter your <b>badge number</b> (e.g. PS-0412) and your <b>password</b>, then tap Continue. On the next screen enter your <b>6-digit authenticator code</b>. Demo accounts use the password <b>DEMO1234</b>.",
+      cta:null },
+    { id:"ap2", cat:"app", icon:"📱", q:"I forgot my password. What do I do?",
+      a:"Contact your supervisor or the department administrator to have your credentials reset. Password reset is currently handled by IT — this feature will be automated once CUNY SSO is integrated.",
+      cta:null },
+    { id:"ap3", cat:"app", icon:"📱", q:"Will I lose my data if I close the app?",
+      a:"<b>Currently yes</b> — the app is in prototype phase and data resets when you refresh the browser. This is a known limitation that will be resolved when IT connects a permanent database backend.",
+      cta:null },
+    { id:"ap4", cat:"app", icon:"📱", q:"How do I take the guided tour?",
+      a:"From the <b>Dashboard</b>, scroll down and tap <b>Take the Tour</b>. Select your role and the tour will walk you through every feature step by step with voice narration. You can mute the voice using the 🔈 button on any step.",
+      cta:{ label:"Go to Dashboard", nav:"dashboard" }},
+    { id:"ap5", cat:"app", icon:"📱", q:"What do the different notification colors mean?",
+      a:"<b>Green</b> — confirmations and approvals. <b>Blue</b> — general information and waitlist updates. <b>Amber</b> — warnings and policy reminders. <b>Red</b> — denials and urgent alerts. Tap the 🔔 bell to view all notifications.",
+      cta:null },
+
+    // ── Supervisors ───────────────────────────────────────────────────────────
+    { id:"sv1", cat:"supervisor", icon:"🔑", q:"Who can post new overtime events?",
+      a:"Only <b>Specialists, Lieutenants, and the Director</b> can post new events. Sergeants can approve or deny cancel requests but cannot post events. If you need an event posted, contact a Specialist or above.",
+      cta:null },
+    { id:"sv2", cat:"supervisor", icon:"🔑", q:"How does a Sergeant approve a cancel request?",
+      a:"Sergeants see an <b>Approvals Queue</b> tab in the hamburger menu. Pending requests appear with the officer's name, event, and reason. Tap <b>✓ Approve</b> to release the slot — the next waitlisted officer is automatically confirmed. Tap <b>✕ Deny</b> to keep the officer assigned.",
+      cta:null },
+    { id:"sv3", cat:"supervisor", icon:"🔑", q:"What is an override and who can issue one?",
+      a:"An override allows a <b>Lieutenant or Director</b> to manually assign an officer to an event bypassing the normal queue. Every override is permanently logged in the audit trail with the issuing officer's badge, the reason, and a timestamp.",
+      cta:null },
+    { id:"sv4", cat:"supervisor", icon:"🔑", q:"How do I post multiple events at once?",
+      a:"In the Admin Dashboard, tap <b>Post New Event</b>. Fill out the form and tap <b>Add to Queue</b> instead of Post Now. Repeat for each event. When ready tap <b>Post All</b> — all events go live with a shared timestamp, counting as one sheet per the Rodney Memo.",
+      cta:null },
   ];
+
+  const CATEGORIES = [
+    { id:"all",       label:"All",            icon:"🗂️" },
+    { id:"signup",    label:"Sign-Up",        icon:"📋" },
+    { id:"waitlist",  label:"Waitlist",       icon:"⏳" },
+    { id:"cancel",    label:"Cancellations",  icon:"🔄" },
+    { id:"firewatch", label:"Fire Watch",     icon:"🔥" },
+    { id:"app",       label:"App & Account",  icon:"📱" },
+    { id:"supervisor",label:"Supervisors",    icon:"🔑" },
+  ];
+
+  const filtered = FAQ_DATA.filter(item => {
+    const matchesCat = activeCategory === "all" || item.cat === activeCategory;
+    const matchesSearch = !search || item.q.toLowerCase().includes(search.toLowerCase()) || item.a.toLowerCase().includes(search.toLowerCase());
+    return matchesCat && matchesSearch;
+  });
+
+  const markHelpful = (id, value) => setHelpful(p => ({ ...p, [id]: value }));
+
   return (
-    <div style={{ padding: "16px 14px" }}>
-      <div style={{ fontSize: 24, fontWeight: 900, color: "#0F172A", marginBottom: 2 }}>Frequently Asked Questions</div>
-      <div style={{ fontSize: 13, color: "#64748B", marginBottom: 16 }}>43 questions · Bernard Baruch College</div>
-      <input placeholder="Search all questions..." style={{
-        width: "100%", padding: "11px 14px", borderRadius: 8, border: "1px solid #E2E8F0",
-        fontSize: 14, marginBottom: 16, boxSizing: "border-box",
-      }} />
-      {categories.map(c => (
-        <div key={c.title} style={{
-          background: "#fff", border: "1px solid #E2E8F0", borderRadius: 10,
-          padding: "14px 16px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12, cursor: "pointer",
-        }}>
-          <span style={{ fontSize: 20 }}>{c.icon}</span>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>{c.title}</div>
-            <div style={{ fontSize: 12, color: "#94A3B8" }}>{c.count} questions</div>
-          </div>
-          <span style={{ color: "#CBD5E1" }}>›</span>
+    <div style={{ padding:"16px 14px", fontFamily:"'DM Sans', system-ui, sans-serif" }}>
+      {/* Header */}
+      <div style={{ fontSize:11, fontWeight:700, color:"#94A3B8", letterSpacing:1, textTransform:"uppercase", marginBottom:2 }}>HELP CENTER</div>
+      <div style={{ fontSize:22, fontWeight:900, color:"#0F172A", marginBottom:2 }}>Frequently Asked Questions</div>
+      <div style={{ fontSize:13, color:"#64748B", marginBottom:14 }}>{FAQ_DATA.length} questions · Bernard Baruch College Public Safety</div>
+
+      {/* Search bar */}
+      <div style={{ position:"relative", marginBottom:14 }}>
+        <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", fontSize:16, pointerEvents:"none" }}>🔍</span>
+        <input
+          value={search}
+          onChange={e => { setSearch(e.target.value); setOpenItem(null); }}
+          placeholder="Search questions... (e.g. waitlist, cancel, fire watch)"
+          style={{
+            width:"100%", padding:"11px 14px 11px 38px", borderRadius:10,
+            border:"1.5px solid #E2E8F0", fontSize:14, boxSizing:"border-box",
+            background:"#F8FAFC", outline:"none",
+            transition:"border 0.2s",
+          }}
+          onFocus={e => e.target.style.borderColor="#1D4ED8"}
+          onBlur={e => e.target.style.borderColor="#E2E8F0"}
+        />
+        {search && (
+          <button onClick={() => setSearch("")} style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", fontSize:16, color:"#94A3B8", cursor:"pointer" }}>✕</button>
+        )}
+      </div>
+
+      {/* Category chips */}
+      {!search && (
+        <div style={{ display:"flex", gap:6, overflowX:"auto", marginBottom:16, paddingBottom:4, scrollbarWidth:"none" }}>
+          {CATEGORIES.map(cat => (
+            <button key={cat.id} onClick={() => setActiveCategory(cat.id)} style={{
+              padding:"6px 12px", borderRadius:20, border:"none", flexShrink:0,
+              background: activeCategory === cat.id ? "#1D4ED8" : "#F1F5F9",
+              color: activeCategory === cat.id ? "#fff" : "#64748B",
+              fontSize:12, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap",
+            }}>
+              {cat.icon} {cat.label}
+            </button>
+          ))}
         </div>
-      ))}
+      )}
+
+      {/* Search result count */}
+      {search && (
+        <div style={{ fontSize:12, color:"#64748B", marginBottom:12 }}>
+          {filtered.length === 0 ? "No results found." : `${filtered.length} result${filtered.length > 1 ? "s" : ""} for "${search}"`}
+        </div>
+      )}
+
+      {/* No results state */}
+      {filtered.length === 0 && (
+        <div style={{ textAlign:"center", padding:"40px 20px" }}>
+          <div style={{ fontSize:32, marginBottom:10 }}>🤔</div>
+          <div style={{ fontWeight:700, fontSize:15, color:"#0F172A", marginBottom:6 }}>No results found</div>
+          <div style={{ fontSize:13, color:"#64748B", marginBottom:16 }}>Try different keywords or browse by category.</div>
+          <button onClick={() => { setSearch(""); setActiveCategory("all"); }} style={{
+            padding:"10px 20px", borderRadius:8, border:"none", background:"#1D4ED8",
+            color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer",
+          }}>Clear Search</button>
+        </div>
+      )}
+
+      {/* Accordion FAQ items */}
+      {filtered.map((item, idx) => {
+        const isOpen = openItem === item.id;
+        const vote = helpful[item.id];
+        return (
+          <div key={item.id} style={{
+            background:"#fff", borderRadius:10, marginBottom:6,
+            border: isOpen ? "1.5px solid #1D4ED8" : "1px solid #E2E8F0",
+            overflow:"hidden", transition:"border 0.2s",
+          }}>
+            {/* Question row — tap to expand */}
+            <div onClick={() => setOpenItem(isOpen ? null : item.id)} style={{
+              display:"flex", alignItems:"center", gap:12, padding:"13px 14px", cursor:"pointer",
+            }}>
+              <span style={{ fontSize:16, flexShrink:0 }}>{item.icon}</span>
+              <div style={{ flex:1, fontSize:13, fontWeight:600, color:"#0F172A", lineHeight:1.4 }}>
+                {item.q}
+              </div>
+              <span style={{
+                fontSize:16, color: isOpen ? "#1D4ED8" : "#CBD5E1",
+                transform: isOpen ? "rotate(90deg)" : "none", transition:"transform 0.2s", flexShrink:0,
+              }}>›</span>
+            </div>
+
+            {/* Answer — visible when open */}
+            {isOpen && (
+              <div style={{ padding:"0 14px 14px 42px", borderTop:"1px solid #F1F5F9" }}>
+                <div style={{ fontSize:13, color:"#334155", lineHeight:1.7, marginTop:10 }}
+                  dangerouslySetInnerHTML={{ __html: item.a }} />
+
+                {/* CTA button */}
+                {item.cta && setNav && (
+                  <button onClick={() => setNav(item.cta.nav)} style={{
+                    display:"inline-flex", alignItems:"center", gap:6,
+                    marginTop:12, padding:"8px 14px", borderRadius:8, border:"none",
+                    background:"#EFF6FF", color:"#1D4ED8", fontWeight:700, fontSize:12, cursor:"pointer",
+                  }}>
+                    {item.cta.label} →
+                  </button>
+                )}
+
+                {/* Was this helpful? */}
+                <div style={{ marginTop:14, paddingTop:10, borderTop:"1px solid #F1F5F9", display:"flex", alignItems:"center", gap:10 }}>
+                  <span style={{ fontSize:11, color:"#94A3B8", fontWeight:600 }}>Was this helpful?</span>
+                  {vote ? (
+                    <span style={{ fontSize:11, color:"#059669", fontWeight:700 }}>
+                      {vote === "yes" ? "👍 Thanks for the feedback!" : "👎 We'll improve this answer."}
+                    </span>
+                  ) : (
+                    <>
+                      <button onClick={() => markHelpful(item.id,"yes")} style={{ padding:"4px 12px", borderRadius:6, border:"1px solid #E2E8F0", background:"#fff", fontSize:12, fontWeight:600, cursor:"pointer", color:"#374151" }}>👍 Yes</button>
+                      <button onClick={() => markHelpful(item.id,"no")} style={{ padding:"4px 12px", borderRadius:6, border:"1px solid #E2E8F0", background:"#fff", fontSize:12, fontWeight:600, cursor:"pointer", color:"#374151" }}>👎 No</button>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Escalation — easy contact */}
+      <div style={{ background:"#F8FAFC", border:"1px solid #E2E8F0", borderRadius:12, padding:16, marginTop:16, textAlign:"center" }}>
+        <div style={{ fontSize:16, marginBottom:6 }}>🙋</div>
+        <div style={{ fontWeight:700, fontSize:14, color:"#0F172A", marginBottom:4 }}>Still have a question?</div>
+        <div style={{ fontSize:12, color:"#64748B", marginBottom:12 }}>Contact your supervisor or the department administrator directly.</div>
+        <div style={{ display:"flex", gap:8, justifyContent:"center" }}>
+          <button onClick={() => setNav && setNav("profile")} style={{
+            padding:"9px 16px", borderRadius:8, border:"1px solid #E2E8F0",
+            background:"#fff", color:"#374151", fontWeight:700, fontSize:12, cursor:"pointer",
+          }}>View My Profile</button>
+          <button onClick={() => setNav && setNav("settings")} style={{
+            padding:"9px 16px", borderRadius:8, border:"none",
+            background:"#1D4ED8", color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer",
+          }}>Notification Settings</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -3048,6 +3281,7 @@ function PostEventForm({ officer, onPost, onClose }) {
 // ── Fire Watch Form ───────────────────────────────────────────────────────────
 function FireWatchForm({ officer, onPost, onClose }) {
   const FIRE_WATCH_LOCATION = "VC Building (17 Lex)";
+  const [weekStart, setWeekStart] = useState(""); // Monday date input
   const [slots, setSlots] = useState({
     "Sat Overnight (0000-0800)": 1,
     "Sat Day (0800-1600)":       1,
@@ -3059,7 +3293,43 @@ function FireWatchForm({ officer, onPost, onClose }) {
   });
   const [gracePeriodActive, setGracePeriodActive] = useState(true);
 
+  const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+  // Map each shift to a day offset from the Monday (0=Mon, 5=Sat, 6=Sun)
+  const shiftDayOffset = {
+    "Sat Overnight (0000-0800)": 5,
+    "Sat Day (0800-1600)":       5,
+    "Sat Evening (1600-0000)":   5,
+    "Sun Overnight (0000-0800)": 6,
+    "Sun Day (0800-1600)":       6,
+    "Sun Evening (1600-0000)":   6,
+    "Mon-Fri Day (0800-1600)":   0, // starts Monday
+  };
+
+  // Calculate actual date for a shift given the Monday start
+  const getShiftDate = (shift) => {
+    if (!weekStart) return null;
+    const monday = new Date(weekStart + "T00:00:00");
+    const offset = shiftDayOffset[shift] ?? 0;
+    const shiftDate = new Date(monday);
+    shiftDate.setDate(monday.getDate() + offset);
+    return `${MONTH_NAMES[shiftDate.getMonth()]} ${shiftDate.getDate()}`;
+  };
+
+  // Get Monday of current week as default
+  const getThisMonday = () => {
+    const today = new Date();
+    const day = today.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    today.setDate(today.getDate() + diff);
+    return today.toISOString().split("T")[0];
+  };
+
   const inputStyle = { width:50, textAlign:"center", padding:"5px 4px", fontSize:13, fontWeight:700, borderRadius:6, border:"1px solid #E2E8F0", margin:"0 auto", display:"block" };
+  const labelStyle = { fontSize:10, fontWeight:700, color:"#64748B", letterSpacing:1, textTransform:"uppercase", display:"block", marginBottom:5 };
+
+  const activeShifts = Object.entries(slots).filter(([,count]) => count > 0);
+  const isValid = weekStart && activeShifts.length > 0;
 
   return (
     <div style={{ background:"#fff", borderRadius:12, padding:18, border:"1.5px solid #DC2626", marginBottom:16, boxShadow:"0 4px 20px rgba(220,38,38,0.1)" }}>
@@ -3072,26 +3342,74 @@ function FireWatchForm({ officer, onPost, onClose }) {
       </div>
 
       <div style={{ fontSize:11, color:"#92400E", background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:8, padding:"8px 12px", marginBottom:14, fontWeight:600 }}>
-        🔥 Fire Watch shifts will be posted as separate events. Adjust slot counts as needed.
+        🔥 Each shift posts as a separate event with its correct date. Officers pick the specific shift they want.
       </div>
 
+      {/* Week picker */}
+      <div style={{ marginBottom:14 }}>
+        <label style={labelStyle}>Select Week (Starting Monday) *</label>
+        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+          <input
+            type="date"
+            value={weekStart}
+            onChange={e => {
+              // Snap to Monday if a non-Monday is selected
+              const d = new Date(e.target.value + "T00:00:00");
+              const day = d.getDay();
+              if (day !== 1) {
+                const diff = day === 0 ? -6 : 1 - day;
+                d.setDate(d.getDate() + diff);
+                setWeekStart(d.toISOString().split("T")[0]);
+              } else {
+                setWeekStart(e.target.value);
+              }
+            }}
+            style={{ flex:1, padding:"10px 12px", borderRadius:8, border:"1px solid #E2E8F0", fontSize:13, background:"#F8FAFC", boxSizing:"border-box" }}
+          />
+          <button onClick={() => setWeekStart(getThisMonday())} style={{
+            padding:"10px 12px", borderRadius:8, border:"1px solid #E2E8F0",
+            background:"#F8FAFC", fontSize:12, fontWeight:700, color:"#1D4ED8", cursor:"pointer", whiteSpace:"nowrap",
+          }}>This Week</button>
+        </div>
+        {weekStart && (
+          <div style={{ fontSize:11, color:"#059669", fontWeight:700, marginTop:5 }}>
+            ✓ Week of {new Date(weekStart + "T00:00:00").toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric" })}
+          </div>
+        )}
+      </div>
+
+      {/* Shift slots with calculated dates */}
       <div style={{ border:"1px solid #E2E8F0", borderRadius:8, overflow:"hidden", marginBottom:12 }}>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 80px", padding:"7px 12px", background:"#FEF2F2", borderBottom:"1px solid #FECACA" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr auto 80px", padding:"7px 12px", background:"#FEF2F2", borderBottom:"1px solid #FECACA" }}>
           <span style={{ fontSize:10, fontWeight:700, color:"#DC2626", letterSpacing:0.8 }}>SHIFT</span>
+          <span style={{ fontSize:10, fontWeight:700, color:"#DC2626", letterSpacing:0.8, paddingRight:12 }}>DATE</span>
           <span style={{ fontSize:10, fontWeight:700, color:"#DC2626", letterSpacing:0.8, textAlign:"center" }}>SLOTS</span>
         </div>
-        {Object.entries(slots).map(([shift, count]) => (
-          <div key={shift} style={{ display:"grid", gridTemplateColumns:"1fr 80px", padding:"9px 12px", borderBottom:"1px solid #F1F5F9", alignItems:"center" }}>
-            <span style={{ fontSize:12, color:"#374151" }}>{shift}</span>
-            <input type="number" min="0" max="10" value={count}
-              onChange={e => setSlots(p => ({ ...p, [shift]: parseInt(e.target.value)||0 }))}
-              style={inputStyle}
-            />
-          </div>
-        ))}
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 80px", padding:"8px 12px", background:"#FEF2F2", alignItems:"center" }}>
-          <span style={{ fontSize:12, fontWeight:700, color:"#DC2626" }}>Total Shifts</span>
-          <span style={{ fontSize:15, fontWeight:900, color:"#DC2626", textAlign:"center", display:"block" }}>{Object.keys(slots).filter(k=>slots[k]>0).length}</span>
+        {Object.entries(slots).map(([shift, count]) => {
+          const shiftDate = getShiftDate(shift);
+          return (
+            <div key={shift} style={{ display:"grid", gridTemplateColumns:"1fr auto 80px", padding:"9px 12px", borderBottom:"1px solid #F1F5F9", alignItems:"center" }}>
+              <span style={{ fontSize:12, color:"#374151" }}>{shift}</span>
+              <span style={{ fontSize:11, fontWeight:700, color: shiftDate ? "#059669" : "#CBD5E1", paddingRight:12 }}>
+                {shiftDate || "—"}
+              </span>
+              {/* +/- buttons */}
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:0 }}>
+                <button onClick={() => setSlots(p => ({ ...p, [shift]: Math.max(0, (p[shift]||0) - 1) }))}
+                  style={{ width:24, height:26, borderRadius:"5px 0 0 5px", border:"1px solid #E2E8F0", background:"#F8FAFC", color:"#374151", fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>−</button>
+                <div style={{ width:28, height:26, border:"1px solid #E2E8F0", borderLeft:"none", borderRight:"none", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, color:"#0F172A", background:"#fff" }}>
+                  {count}
+                </div>
+                <button onClick={() => setSlots(p => ({ ...p, [shift]: Math.min(10, (p[shift]||0) + 1) }))}
+                  style={{ width:24, height:26, borderRadius:"0 5px 5px 0", border:"1px solid #E2E8F0", background:"#DC2626", color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>+</button>
+              </div>
+            </div>
+          );
+        })}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr auto 80px", padding:"8px 12px", background:"#FEF2F2", alignItems:"center" }}>
+          <span style={{ fontSize:12, fontWeight:700, color:"#DC2626" }}>Active Shifts</span>
+          <span />
+          <span style={{ fontSize:15, fontWeight:900, color:"#DC2626", textAlign:"center", display:"block" }}>{activeShifts.length}</span>
         </div>
       </div>
 
@@ -3110,24 +3428,28 @@ function FireWatchForm({ officer, onPost, onClose }) {
       </div>
 
       <button onClick={() => {
-        const shifts = Object.entries(slots).filter(([,count]) => count > 0).map(([shift, count]) => ({
+        if (!isValid) return;
+        const sharedPostedAt = Date.now();
+        const shifts = activeShifts.map(([shift, count]) => ({
           title: `Fire Watch — ${shift}`,
           type: "FIRE WATCH",
-          date: "This Week",
-          time: shift.match(/\d{4}-\d{4}/)?.[0] || shift,
+          date: getShiftDate(shift) || shift,
+          time: shift.match(/\d{4}-\d{4}/)?.[0] || "",
           location: FIRE_WATCH_LOCATION,
           slots: count,
           hold: false,
           status: "OPEN",
-          postedAt: Date.now(),
+          postedAt: sharedPostedAt,
           rankSlots: { "Campus Security Assistant": count, "CPO": 0, "Corporal": 0, "Sergeant": 0, "Specialist": 0 },
         }));
         onPost(shifts);
       }} style={{
         width:"100%", padding:"13px 0", borderRadius:8, border:"none",
-        background:"#DC2626", color:"#fff", fontWeight:800, fontSize:15, cursor:"pointer",
+        background: isValid ? "#DC2626" : "#CBD5E1",
+        color:"#fff", fontWeight:800, fontSize:15,
+        cursor: isValid ? "pointer" : "default",
       }}>
-        Post All Fire Watch Shifts & Notify Officers
+        Post {activeShifts.length} Fire Watch Shift{activeShifts.length !== 1 ? "s" : ""} & Notify Officers
       </button>
     </div>
   );
@@ -3510,7 +3832,7 @@ export default function App() {
       {nav === "slot-release"    && <SlotRelease showToast={showToast} />}
       {nav === "cancel-requests" && <CancelRequests />}
       {nav === "approvals"         && <SgtApprovals cancelRequests={cancelRequests} onApprove={approveCancelRequest} onDeny={denyCancelRequest} officer={officer} />}
-      {nav === "faq"             && <FAQ />}
+      {nav === "faq"             && <FAQ setNav={setNav} />}
       {nav === "profile"         && <Profile officer={officer} />}
       {nav === "settings"        && <Settings startTour={startTour} officer={officer} openAIKey={openAIKey} setOpenAIKey={setOpenAIKey} />}
       {toast && <Toast msg={toast.msg} type={toast.type} onDismiss={() => setToast(null)} />}
