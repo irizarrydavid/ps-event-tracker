@@ -1238,7 +1238,7 @@ function EventCard({ event, signups, onSignup, onWaitlist, onCancel, onRequestCa
 // ═══════════════════════════════════════════════════════════════════════════════
 // DASHBOARD VIEW
 // ═══════════════════════════════════════════════════════════════════════════════
-function Dashboard({ officer, signups, handleSignup, handleWaitlist, handleCancel, submitCancelRequest, isSgt, showToast, startTour, events }) {
+function Dashboard({ officer, signups, handleSignup, handleWaitlist, handleCancel, submitCancelRequest, isSgt, showToast, startTour, events, darkMode = false }) {
   const [tab, setTab] = useState("all");
   const [cancelModal, setCancelModal] = useState(null);   // { eventId, type }
   const [signupModal, setSignupModal] = useState(null);   // eventId
@@ -1386,7 +1386,7 @@ function Dashboard({ officer, signups, handleSignup, handleWaitlist, handleCance
 // ═══════════════════════════════════════════════════════════════════════════════
 // SCHEDULE VIEW
 // ═══════════════════════════════════════════════════════════════════════════════
-function Schedule({ signups, events }) {
+function Schedule({ signups, events, darkMode = false }) {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [currentMonth, setCurrentMonth] = useState({ year: 2026, month: 4 }); // May 2026 (0-indexed)
 
@@ -1432,7 +1432,7 @@ function Schedule({ signups, events }) {
   const isToday = (day) => day === today.getDate() && currentMonth.month === today.getMonth() && currentMonth.year === today.getFullYear();
 
   return (
-    <div style={{ padding:"16px 14px", fontFamily:"'DM Sans', system-ui, sans-serif" }}>
+    <div style={{ padding:"16px 14px", fontFamily:"'DM Sans', system-ui, sans-serif", background: darkMode ? "#0F172A" : "#F8FAFC", minHeight:"100vh" }}>
       <div style={{ fontSize:11, fontWeight:700, color:"#94A3B8", letterSpacing:1, textTransform:"uppercase", marginBottom:2 }}>OPERATIONS</div>
       <div style={{ fontSize:22, fontWeight:900, color:"#0F172A", marginBottom:2 }}>Schedule Calendar</div>
       <div style={{ fontSize:13, color:"#64748B", marginBottom:16 }}>Tap any event to see details</div>
@@ -1640,7 +1640,7 @@ function CancelRequests() {
   );
 }
 
-function FAQ({ setNav }) {
+function FAQ({ setNav, darkMode = false }) {
   const [search, setSearch]         = useState("");
   const [openItem, setOpenItem]     = useState(null);
   const [activeCategory, setActiveCategory] = useState("all");
@@ -1764,7 +1764,7 @@ function FAQ({ setNav }) {
   const markHelpful = (id, value) => setHelpful(p => ({ ...p, [id]: value }));
 
   return (
-    <div style={{ padding:"16px 14px", fontFamily:"'DM Sans', system-ui, sans-serif" }}>
+    <div style={{ padding:"16px 14px", fontFamily:"'DM Sans', system-ui, sans-serif", background: darkMode ? "#0F172A" : "#F8FAFC", minHeight:"100vh" }}>
       {/* Header */}
       <div style={{ fontSize:11, fontWeight:700, color:"#94A3B8", letterSpacing:1, textTransform:"uppercase", marginBottom:2 }}>HELP CENTER</div>
       <div style={{ fontSize:22, fontWeight:900, color:"#0F172A", marginBottom:2 }}>Frequently Asked Questions</div>
@@ -1833,8 +1833,8 @@ function FAQ({ setNav }) {
         const vote = helpful[item.id];
         return (
           <div key={item.id} style={{
-            background:"#fff", borderRadius:10, marginBottom:6,
-            border: isOpen ? "1.5px solid #1D4ED8" : "1px solid #E2E8F0",
+            background: darkMode ? "#1E293B" : "#fff", borderRadius:10, marginBottom:6,
+            border: isOpen ? "1.5px solid #1D4ED8" : `1px solid ${darkMode ? "#334155" : "#E2E8F0"}`,
             overflow:"hidden", transition:"border 0.2s",
           }}>
             {/* Question row — tap to expand */}
@@ -1889,7 +1889,7 @@ function FAQ({ setNav }) {
       })}
 
       {/* Escalation — easy contact */}
-      <div style={{ background:"#F8FAFC", border:"1px solid #E2E8F0", borderRadius:12, padding:16, marginTop:16, textAlign:"center" }}>
+      <div style={{ background: darkMode ? "#1E293B" : "#F8FAFC", border:`1px solid ${darkMode ? "#334155" : "#E2E8F0"}`, borderRadius:12, padding:16, marginTop:16, textAlign:"center" }}>
         <div style={{ fontSize:16, marginBottom:6 }}>🙋</div>
         <div style={{ fontWeight:700, fontSize:14, color:"#0F172A", marginBottom:4 }}>Still have a question?</div>
         <div style={{ fontSize:12, color:"#64748B", marginBottom:12 }}>Contact your supervisor or the department administrator directly.</div>
@@ -2758,7 +2758,7 @@ function CancelRequestModal({ event, onSubmit, onClose, type = "cancel" }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // SERGEANT APPROVALS TAB
 // ═══════════════════════════════════════════════════════════════════════════════
-function SgtApprovals({ cancelRequests, onApprove, onDeny, officer }) {
+function SgtApprovals({ cancelRequests, onApprove, onDeny, officer, darkMode = false }) {
   const [filter, setFilter] = useState("pending");
 
   const filtered = cancelRequests.filter(r => filter === "all" ? true : r.status === filter);
@@ -2786,7 +2786,7 @@ function SgtApprovals({ cancelRequests, onApprove, onDeny, officer }) {
   };
 
   return (
-    <div style={{ padding: "16px 14px", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+    <div style={{ padding: "16px 14px", fontFamily: "'DM Sans', system-ui, sans-serif", background: darkMode ? "#0F172A" : "#F8FAFC", minHeight:"100vh" }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: 1, textTransform: "uppercase", marginBottom: 2 }}>
         SERGEANT PORTAL
       </div>
@@ -2964,7 +2964,7 @@ const LOCATIONS = [
 ];
 const EVENT_TYPES_POST = ["COMMENCEMENT","ATHLETICS","SPECIAL","FIRE WATCH","STUDENT LIFE","PATROL","BPAC","OTHER"];
 
-function SupervisorDashboard({ officer, events, setEvents, confirmed, setConfirmed, notifications, addNotif, showToast, sendEmail, sendEmailToAll, cancelRequests, approveCancelRequest, denyCancelRequest, postEvent, rescheduleEvent }) {
+function SupervisorDashboard({ officer, events, setEvents, confirmed, setConfirmed, notifications, addNotif, showToast, sendEmail, sendEmailToAll, cancelRequests, approveCancelRequest, denyCancelRequest, postEvent, rescheduleEvent, darkMode = false }) {
   const [tab, setTab] = useState("events");
   const [showPostForm, setShowPostForm] = useState(false);
   const [showFireWatchForm, setShowFireWatchForm] = useState(false);
@@ -3002,10 +3002,10 @@ function SupervisorDashboard({ officer, events, setEvents, confirmed, setConfirm
   const pendingCount = cancelRequests.filter(r => r.status === "pending").length;
 
   return (
-    <div style={{ padding:"16px 14px", fontFamily:"'DM Sans', system-ui, sans-serif" }}>
+    <div style={{ padding:"16px 14px", fontFamily:"'DM Sans', system-ui, sans-serif", background: darkMode ? "#0F172A" : "#F8FAFC", minHeight:"100vh" }}>
       {/* Header */}
       <div style={{ fontSize:11, fontWeight:700, color:"#94A3B8", letterSpacing:1, textTransform:"uppercase", marginBottom:2 }}>SUPERVISOR PORTAL</div>
-      <div style={{ fontSize:22, fontWeight:900, color:"#0F172A", marginBottom:2 }}>Admin Dashboard</div>
+      <div style={{ fontSize:22, fontWeight:900, color: darkMode ? "#F1F5F9" : "#0F172A", marginBottom:2 }}>Admin Dashboard</div>
       <div style={{ fontSize:13, color:"#64748B", marginBottom:16 }}>
         {officer.name} · {officer.rank}
       </div>
@@ -3062,7 +3062,7 @@ function SupervisorDashboard({ officer, events, setEvents, confirmed, setConfirm
             const graceActive = ev.postedAt && (Date.now() - ev.postedAt) < GRACE_PERIOD_MS;
             const graceHrs = graceActive ? Math.ceil((GRACE_PERIOD_MS - (Date.now() - ev.postedAt)) / 3600000) : 0;
             return (
-              <div key={ev.id} style={{ background:"#fff", borderRadius:10, padding:14, border:"1px solid #E2E8F0", marginBottom:10, boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
+              <div key={ev.id} style={{ background: darkMode ? "#1E293B" : "#fff", borderRadius:10, padding:14, border:`1px solid ${darkMode ? "#334155" : "#E2E8F0"}`, marginBottom:10, boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
                   <div>
                     <div style={{ fontWeight:800, fontSize:14, color:"#0F172A" }}>{ev.title}</div>
@@ -4544,14 +4544,15 @@ export default function App() {
             denyCancelRequest={denyCancelRequest}
             postEvent={postEvent}
             rescheduleEvent={rescheduleEvent}
+            darkMode={darkMode}
           />
-        : nav === "dashboard" && <Dashboard officer={officer} signups={signups} handleSignup={handleSignup} handleWaitlist={handleWaitlist} handleCancel={handleCancel} submitCancelRequest={submitCancelRequest} isSgt={isSgtPlus(officer?.rank)} showToast={showToast} startTour={startTour} events={events} />
+        : nav === "dashboard" && <Dashboard officer={officer} signups={signups} handleSignup={handleSignup} handleWaitlist={handleWaitlist} handleCancel={handleCancel} submitCancelRequest={submitCancelRequest} isSgt={isSgtPlus(officer?.rank)} showToast={showToast} startTour={startTour} events={events} darkMode={darkMode} />
       }
-      {nav === "schedule"        && <Schedule signups={signups} events={events} />}
+      {nav === "schedule"        && <Schedule signups={signups} events={events} darkMode={darkMode} />}
       {nav === "slot-release"    && <SlotRelease showToast={showToast} />}
       {nav === "cancel-requests" && <CancelRequests />}
-      {nav === "approvals"         && <SgtApprovals cancelRequests={cancelRequests} onApprove={approveCancelRequest} onDeny={denyCancelRequest} officer={officer} />}
-      {nav === "faq"             && <FAQ setNav={setNav} />}
+      {nav === "approvals"         && <SgtApprovals cancelRequests={cancelRequests} onApprove={approveCancelRequest} onDeny={denyCancelRequest} officer={officer} darkMode={darkMode} />}
+      {nav === "faq"             && <FAQ setNav={setNav} darkMode={darkMode} />}
       {nav === "analytics"      && isSpecialistPlus(officer?.rank) && <AnalyticsDashboard events={events} confirmed={confirmed} cancelRequests={cancelRequests} officers={OFFICERS} darkMode={darkMode} />}
       {nav === "myschedule"     && <MySchedule officer={officer} confirmed={confirmed} events={events} cancelRequests={cancelRequests} darkMode={darkMode} />}
       {nav === "profile"         && <Profile officer={officer} />}
