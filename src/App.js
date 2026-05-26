@@ -1003,7 +1003,7 @@ function NotificationDrawer({ notifications, onClose, onMarkAllRead }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // TOPBAR
 // ═══════════════════════════════════════════════════════════════════════════════
-function TopBar({ title, officer, menuOpen, setMenuOpen, nav, setNav, notifCount, onSignOut, onBellClick }) {
+function TopBar({ title, officer, menuOpen, setMenuOpen, nav, setNav, notifCount, onSignOut, onBellClick, darkMode }) {
   return (
     <div style={{
       position: "sticky", top: 0, zIndex: 100,
@@ -2017,7 +2017,7 @@ function Settings({ startTour, officer, openAIKey, setOpenAIKey, darkMode, setDa
         }}>Launch Guided Tour</button>
       </div>
       {/* Dark Mode */}
-      <div style={{ background:"#fff", border:"1px solid #E2E8F0", borderRadius:12, padding:16, marginBottom:12 }}>
+      <div style={{ background: darkMode ? "#1E293B" : "#fff", border:`1px solid ${darkMode ? "#334155" : "#E2E8F0"}`, borderRadius:12, padding:16, marginBottom:12 }}>
         <div style={{ fontSize:10, fontWeight:800, color:"#94A3B8", letterSpacing:0.8, marginBottom:10 }}>DISPLAY</div>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <div>
@@ -4493,8 +4493,14 @@ export default function App() {
   }
 
   // ── Main app ──────────────────────────────────────────────────────────────
+  const appBg   = darkMode ? "#0F172A" : "#F1F5F9";
+  const cardBg  = darkMode ? "#1E293B" : "#ffffff";
+  const textPri = darkMode ? "#F1F5F9" : "#0F172A";
+  const textSub = darkMode ? "#94A3B8" : "#64748B";
+  const border  = darkMode ? "#334155" : "#E2E8F0";
+
   return (
-    <div style={{ minHeight: "100vh", background: "#F1F5F9", fontFamily: "'DM Sans', system-ui, sans-serif", maxWidth: 430, margin: "0 auto", position: "relative" }}>
+    <div style={{ minHeight: "100vh", background: appBg, fontFamily: "'DM Sans', system-ui, sans-serif", maxWidth: 430, margin: "0 auto", position: "relative", transition: "background 0.3s ease" }}>
       <TopBar
         title={navTitles[nav] || "Dashboard"}
         officer={officer}
@@ -4505,6 +4511,7 @@ export default function App() {
         notifCount={unreadCount}
         onSignOut={handleSignOut}
         onBellClick={() => { setNotifOpen(o => !o); setMenuOpen(false); }}
+        darkMode={darkMode}
       />
 
       {menuOpen && (
