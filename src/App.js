@@ -1155,7 +1155,7 @@ function EventCard({ event, signups, onSignup, onWaitlist, onCancel, onRequestCa
               fontSize: 10, fontWeight: 700,
               background: "#FEF2F2", color: "#DC2626", border: "1px solid #FECACA",
               padding: "3px 7px", borderRadius: 4,
-            }}>🔫 {event.armedSlots} Armed Slot{event.armedSlots > 1 ? "s" : ""}</span>
+            }}>{event.armedSlots} Armed Slot{event.armedSlots > 1 ? "s" : ""}</span>
           )}
         </div>
         {/* Status badge */}
@@ -1234,7 +1234,7 @@ function EventCard({ event, signups, onSignup, onWaitlist, onCancel, onRequestCa
             <button disabled style={{ flex:1, padding:"9px 0", borderRadius:8, border:"1.5px solid #CBD5E1", background:"#F8FAFC", color:"#94A3B8", fontWeight:700, fontSize:12, cursor:"not-allowed" }}>🔒 Grace Period Active</button>
           );
           if (blockedByArmed) return (
-            <button disabled style={{ flex:1, padding:"9px 0", borderRadius:8, border:"1.5px solid #FECACA", background:"#FEF2F2", color:"#DC2626", fontWeight:700, fontSize:12, cursor:"not-allowed" }}>🔫 Armed Personnel Only</button>
+            <button disabled style={{ flex:1, padding:"9px 0", borderRadius:8, border:"1.5px solid #FECACA", background:"#FEF2F2", color:"#DC2626", fontWeight:700, fontSize:12, cursor:"not-allowed" }}>Armed Personnel Only</button>
           );
           return (
             <button className="btn-press" onClick={() => onSignup(event.id)} style={{ flex:1, padding:"9px 0", borderRadius:8, border:"none", background:"#1D4ED8", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer" }}>
@@ -1932,16 +1932,32 @@ function Profile({ officer }) {
       <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: 1, textTransform: "uppercase", marginBottom: 2 }}>ACCOUNT</div>
       <div style={{ fontSize: 22, fontWeight: 900, color: "#0F172A", marginBottom: 16 }}>My Profile</div>
       <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 12, padding: 16, marginBottom: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
-          <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#1D4ED8", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 900, color: "#fff" }}>
+        {/* Avatar + name + badges */}
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
+          <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#1D4ED8", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 900, color: "#fff", flexShrink: 0 }}>
             {officer.name.split(" ").map(n=>n[0]).join("")}
           </div>
           <div>
             <div style={{ fontSize: 20, fontWeight: 900 }}>{officer.name}</div>
-            <div style={{ fontSize: 13, color: "#64748B" }}>Campus Peace Officer</div>
+            <div style={{ fontSize: 13, color: "#64748B" }}>{officer.rank}</div>
             <div style={{ fontSize: 13, color: "#64748B" }}>{officer.email}</div>
           </div>
         </div>
+        {/* Armed + rank badges */}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, background: "#EFF6FF", color: "#1D4ED8", padding: "4px 10px", borderRadius: 20, border: "1px solid #BFDBFE" }}>
+            {officer.badge}
+          </span>
+          <span style={{ fontSize: 11, fontWeight: 700, background: "#F0FDF4", color: "#059669", padding: "4px 10px", borderRadius: 20, border: "1px solid #A7F3D0" }}>
+            {officer.rank}
+          </span>
+          {officer.armed && (
+            <span style={{ fontSize: 11, fontWeight: 700, background: "#FEF2F2", color: "#DC2626", padding: "4px 10px", borderRadius: 20, border: "1px solid #FECACA" }}>
+              Armed Officer
+            </span>
+          )}
+        </div>
+        {/* Info grid */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           {[["FULL NAME", officer.name],["BADGE NUMBER", officer.badge],["RANK", officer.rank],["PHONE", officer.phone]].map(([label, value]) => (
             <div key={label} style={{ background: "#F8FAFC", borderRadius: 8, padding: "10px 12px" }}>
@@ -1953,6 +1969,12 @@ function Profile({ officer }) {
             <div style={{ fontSize: 9, fontWeight: 800, color: "#94A3B8", letterSpacing: 0.8, marginBottom: 3 }}>EMAIL</div>
             <div style={{ fontSize: 13, fontWeight: 700 }}>{officer.email}</div>
           </div>
+          {officer.armed && (
+            <div style={{ background: "#FEF2F2", borderRadius: 8, padding: "10px 12px", border: "1px solid #FECACA" }}>
+              <div style={{ fontSize: 9, fontWeight: 800, color: "#DC2626", letterSpacing: 0.8, marginBottom: 3 }}>DESIGNATION</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#DC2626" }}>Armed Officer</div>
+            </div>
+          )}
         </div>
       </div>
       <div style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 12, padding: 16 }}>
@@ -3097,7 +3119,7 @@ function SupervisorDashboard({ officer, events, setEvents, confirmed, setConfirm
                     )}
                     {(ev.armedSlots||0) > 0 && (
                       <span style={{ fontSize:9, fontWeight:700, color:"#DC2626", background:"#FEF2F2", padding:"2px 6px", borderRadius:4 }}>
-                        🔫 {ev.armedSlots} Armed
+                        {ev.armedSlots} Armed
                       </span>
                     )}
                   </div>
@@ -3520,7 +3542,7 @@ function PostEventForm({ officer, onPost, onClose }) {
           {/* Armed Officer row */}
           <div style={{ display:"grid", gridTemplateColumns:"1fr 100px", padding:"8px 12px", borderBottom:"1px solid #F1F5F9", alignItems:"center", background:"#FEF2F2" }}>
             <div>
-              <span style={{ fontSize:13, color:"#DC2626", fontWeight:700 }}>🔫 Armed Officer</span>
+              <span style={{ fontSize:13, color:"#DC2626", fontWeight:700 }}>Armed Officer</span>
               <span style={{ fontSize:10, color:"#94A3B8", display:"block", marginTop:1 }}>Only armed officers can fill these slots</span>
             </div>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:0 }}>
@@ -3893,7 +3915,7 @@ function AnalyticsDashboard({ events, confirmed, cancelRequests, officers, darkM
                 <div style={{ fontSize: 10, color: sub }}>{off.badge} · {off.rank}</div>
               </div>
               <Badge variant="primary">{off.rank.split(" ")[0]}</Badge>
-                  {off.armed && <Badge variant="danger">🔫 Armed</Badge>}
+                  {off.armed && <Badge variant="danger">Armed</Badge>}
             </div>
           );
         })}
@@ -4388,7 +4410,7 @@ export default function App() {
 
     setEvents(prev => prev.map(e => e.id === eventId ? { ...e, filled: e.filled + 1 } : e));
     setConfirmed(prev => [...prev, { eventId, signedAt: Date.now(), armedSlot: useArmedSlot }]);
-    addNotif(`You've been confirmed for ${ev.title}.${useArmedSlot ? " 🔫 Armed assignment." : ""}`, "success");
+    addNotif(`You've been confirmed for ${ev.title}.${useArmedSlot ? " Armed assignment." : ""}`, "success");
     showToast(`Signed up successfully!${useArmedSlot ? " Armed slot confirmed." : ""}`, "success");
   };
 
