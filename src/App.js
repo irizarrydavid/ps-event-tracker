@@ -258,14 +258,22 @@ const SHIELD_B64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADICAYAAA
 // SEED DATA
 // ═══════════════════════════════════════════════════════════════════════════════
 const OFFICERS = [
-  { id:1, name:"James Carter",    badge:"PS-0412", rank:"CPO",                      tour:"Tour 2", daysOff:"Fri & Sat", email:"carter@cuny.edu",    phone:"718-555-0101", otHours:12 },
-  { id:2, name:"Thomas Reyes",    badge:"PS-0345", rank:"Corporal",                 tour:"Tour 1", daysOff:"Sun & Mon", email:"reyes@cuny.edu",     phone:"718-555-0202", otHours:8  },
-  { id:3, name:"Dev Mehta",       badge:"PS-0476", rank:"Specialist",               tour:"Tour 3", daysOff:"Wed & Thu", email:"mehta@cuny.edu",     phone:"718-555-0303", otHours:20 },
-  { id:4, name:"Sandra Williams", badge:"PS-0501", rank:"Sergeant",                 tour:"Tour 2", daysOff:"Tue & Wed", email:"williams@cuny.edu",  phone:"718-555-0404", otHours:6  },
-  { id:5, name:"Marcus Brown",    badge:"PS-0290", rank:"Lieutenant",               tour:"Tour 1", daysOff:"Sat & Sun", email:"brown@cuny.edu",     phone:"718-555-0505", otHours:4  },
-  { id:6, name:"Kevin Thompson",  badge:"PS-0100", rank:"Director of Public Safety",tour:"Tour 1", daysOff:"Sat & Sun", email:"thompson@cuny.edu",  phone:"718-555-0606", otHours:2  },
-  { id:7, name:"Lisa Chen",       badge:"PS-0550", rank:"Campus Security Assistant",tour:"Tour 3", daysOff:"Mon & Tue", email:"chen@cuny.edu",      phone:"718-555-0707", otHours:14 },
+  { id:1, name:"James Carter",    badge:"PS-0412", rank:"CPO",                       tour:"Tour 2", daysOff:"Fri & Sat", email:"carter@cuny.edu",   phone:"718-555-0101", otHours:12, armed:true  },
+  { id:2, name:"Thomas Reyes",    badge:"PS-0345", rank:"Corporal",                  tour:"Tour 1", daysOff:"Sun & Mon", email:"reyes@cuny.edu",    phone:"718-555-0202", otHours:8,  armed:true  },
+  { id:3, name:"Dev Mehta",       badge:"PS-0476", rank:"Specialist",                tour:"Tour 3", daysOff:"Wed & Thu", email:"mehta@cuny.edu",    phone:"718-555-0303", otHours:20, armed:false },
+  { id:4, name:"Sandra Williams", badge:"PS-0501", rank:"Sergeant",                  tour:"Tour 2", daysOff:"Tue & Wed", email:"williams@cuny.edu", phone:"718-555-0404", otHours:6,  armed:false },
+  { id:5, name:"Marcus Brown",    badge:"PS-0290", rank:"Lieutenant",                tour:"Tour 1", daysOff:"Sat & Sun", email:"brown@cuny.edu",    phone:"718-555-0505", otHours:4,  armed:true  },
+  { id:6, name:"Kevin Thompson",  badge:"PS-0100", rank:"Director of Public Safety", tour:"Tour 1", daysOff:"Sat & Sun", email:"thompson@cuny.edu", phone:"718-555-0606", otHours:2,  armed:true  },
+  { id:7, name:"Lisa Chen",       badge:"PS-0550", rank:"Campus Security Assistant", tour:"Tour 3", daysOff:"Mon & Tue", email:"chen@cuny.edu",     phone:"718-555-0707", otHours:14, armed:false },
 ];
+
+// Armed officer helpers
+const isArmed = (officer) => officer?.armed === true;
+const eventRequiresArmed = (ev) => (ev?.armedSlots || 0) > 0;
+const armedSlotsAvailable = (ev, confirmedList) => {
+  const filled = confirmedList.filter(c => c.eventId === ev.id && c.armedSlot === true).length;
+  return Math.max(0, (ev.armedSlots || 0) - filled);
+};
 
 // ── Rank permission helpers ──────────────────────────────────────────────────
 const RANK_LEVEL = {
@@ -285,9 +293,9 @@ const isLtPlus       = (rank) => RANK_LEVEL[rank] >= 5;  // Lt and above
 const GRACE_PERIOD_MS = 72 * 60 * 60 * 1000; // 72 hours in milliseconds
 
 const EVENTS_SEED = [
-  { id:1, title:"Spring Commencement",    date:"May 14",  time:"0600-1400", type:"COMMENCEMENT", slots:6, filled:4, hold:false, status:"OPEN",   postedAt: Date.now() - (80 * 60 * 60 * 1000) }, // posted 80h ago — grace elapsed
+  { id:1, title:"Spring Commencement", armedSlots:2,    date:"May 14",  time:"0600-1400", type:"COMMENCEMENT", slots:6, filled:4, hold:false, status:"OPEN",   postedAt: Date.now() - (80 * 60 * 60 * 1000) }, // posted 80h ago — grace elapsed
   { id:2, title:"Basketball Tournament",  date:"May 11",  time:"1000-2000", type:"ATHLETICS",    slots:4, filled:4, hold:false, status:"FULL",   postedAt: Date.now() - (90 * 60 * 60 * 1000) }, // posted 90h ago — grace elapsed
-  { id:3, title:"Alumni Gala",            date:"May 18",  time:"1800-2300", type:"SPECIAL",      slots:3, filled:1, hold:false, status:"OPEN",   postedAt: Date.now() - (75 * 60 * 60 * 1000) }, // posted 75h ago — grace elapsed
+  { id:3, title:"Alumni Gala", armedSlots:1,            date:"May 18",  time:"1800-2300", type:"SPECIAL",      slots:3, filled:1, hold:false, status:"OPEN",   postedAt: Date.now() - (75 * 60 * 60 * 1000) }, // posted 75h ago — grace elapsed
   { id:4, title:"Fire Watch - 17NLex",    date:"May 9",   time:"0000-0800", type:"FIRE WATCH",   slots:2, filled:2, hold:false, status:"ACTIVE", postedAt: Date.now() - (48 * 60 * 60 * 1000) }, // posted 48h ago — grace active
   { id:5, title:"New Student Orientation",date:"May 21",  time:"0800-1600", type:"STUDENT LIFE", slots:5, filled:2, hold:false, status:"OPEN",   postedAt: Date.now() - (24 * 60 * 60 * 1000) }, // posted 24h ago — grace active
   { id:6, title:"Board of Trustees Mtg",  date:"May 27",  time:"0900-1700", type:"SPECIAL",      slots:3, filled:0, hold:false, status:"OPEN",   postedAt: Date.now() - (12 * 60 * 60 * 1000) }, // posted 12h ago — grace active
@@ -1142,6 +1150,13 @@ function EventCard({ event, signups, onSignup, onWaitlist, onCancel, onRequestCa
               padding: "3px 7px", borderRadius: 4,
             }}>⏱ Grace: {graceTimeLeft}</span>
           )}
+          {(event.armedSlots || 0) > 0 && (
+            <span style={{
+              fontSize: 10, fontWeight: 700,
+              background: "#FEF2F2", color: "#DC2626", border: "1px solid #FECACA",
+              padding: "3px 7px", borderRadius: 4,
+            }}>🔫 {event.armedSlots} Armed Slot{event.armedSlots > 1 ? "s" : ""}</span>
+          )}
         </div>
         {/* Status badge */}
         {isSigned && (
@@ -1212,18 +1227,21 @@ function EventCard({ event, signups, onSignup, onWaitlist, onCancel, onRequestCa
             background: "#fff", color: "#64748B", fontWeight: 700, fontSize: 13, cursor: "pointer",
           }}>Leave Queue</button>
         )}
-        {!isSigned && !isWaited && !isFull && (
-          graceLocked
-            ? <button disabled style={{
-                flex: 1, padding: "9px 0", borderRadius: 8,
-                border: "1.5px solid #CBD5E1", background: "#F8FAFC",
-                color: "#94A3B8", fontWeight: 700, fontSize: 12, cursor: "not-allowed",
-              }}>🔒 Grace Period Active</button>
-            : <button className="btn-press" onClick={() => onSignup(event.id)} style={{
-                flex: 1, padding: "9px 0", borderRadius: 8, border: "none",
-                background: "#1D4ED8", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer",
-              }}>Sign Up</button>
-        )}
+        {!isSigned && !isWaited && !isFull && (() => {
+          const onlyArmedLeft = (event.armedSlots || 0) > 0 && event.filled >= (event.slots - (event.armedSlots || 0));
+          const blockedByArmed = onlyArmedLeft && !signups?.officer?.armed;
+          if (graceLocked) return (
+            <button disabled style={{ flex:1, padding:"9px 0", borderRadius:8, border:"1.5px solid #CBD5E1", background:"#F8FAFC", color:"#94A3B8", fontWeight:700, fontSize:12, cursor:"not-allowed" }}>🔒 Grace Period Active</button>
+          );
+          if (blockedByArmed) return (
+            <button disabled style={{ flex:1, padding:"9px 0", borderRadius:8, border:"1.5px solid #FECACA", background:"#FEF2F2", color:"#DC2626", fontWeight:700, fontSize:12, cursor:"not-allowed" }}>🔫 Armed Personnel Only</button>
+          );
+          return (
+            <button className="btn-press" onClick={() => onSignup(event.id)} style={{ flex:1, padding:"9px 0", borderRadius:8, border:"none", background:"#1D4ED8", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer" }}>
+              {"Sign Up"}
+            </button>
+          );
+        })()}
         {!isSigned && !isWaited && isFull && (
           <button onClick={() => onWaitlist(event.id)} style={{
             flex: 1, padding: "9px 0", borderRadius: 8, border: "none",
@@ -3077,6 +3095,11 @@ function SupervisorDashboard({ officer, events, setEvents, confirmed, setConfirm
                         ⏱ Grace: {graceHrs}h left
                       </span>
                     )}
+                    {(ev.armedSlots||0) > 0 && (
+                      <span style={{ fontSize:9, fontWeight:700, color:"#DC2626", background:"#FEF2F2", padding:"2px 6px", borderRadius:4 }}>
+                        🔫 {ev.armedSlots} Armed
+                      </span>
+                    )}
                   </div>
                 </div>
                 {/* Slot bar */}
@@ -3269,7 +3292,7 @@ function SupervisorDashboard({ officer, events, setEvents, confirmed, setConfirm
 function PostEventForm({ officer, onPost, onClose }) {
   const [form, setForm] = useState({
     title:"", type:"SPECIAL", date:"", time:"", timeStart:"", timeEnd:"", location:"", notes:"",
-    gracePeriodActive: false,
+    gracePeriodActive: false, armedSlots: 0,
     rankSlots: { "Campus Security Assistant":0, "CPO":0, "Corporal":0, "Sergeant":0, "Specialist":0 },
   });
   const [queue, setQueue] = useState([]); // multi-event queue
@@ -3292,6 +3315,7 @@ function PostEventForm({ officer, onPost, onClose }) {
       title: form.title, type: form.type, date: form.date, time: formattedTime,
       location: form.location, notes: form.notes, hold: false,
       slots: totalSlots, rankSlots: { ...form.rankSlots },
+      armedSlots: form.armedSlots || 0,
       status: form.status || "OPEN",
     };
   };
@@ -3413,24 +3437,24 @@ function PostEventForm({ officer, onPost, onClose }) {
         </div>
         <div style={{ gridColumn:"1/-1" }}>
           <label style={labelStyle}>Time *</label>
-          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            <div style={{ flex:1 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+            <div style={{ flex:1, minWidth:0 }}>
               <div style={{ fontSize:10, color:"#94A3B8", fontWeight:600, marginBottom:4 }}>START</div>
               <input
                 type="time"
                 value={form.timeStart||""}
                 onChange={e => update("timeStart", e.target.value)}
-                style={{ ...inputStyle, textAlign:"center", fontSize:15, fontWeight:700, color:"#0F172A" }}
+                style={{ ...inputStyle, textAlign:"center", fontSize:13, fontWeight:700, color:"#0F172A", padding:"10px 4px" }}
               />
             </div>
-            <span style={{ fontSize:13, fontWeight:700, color:"#94A3B8", flexShrink:0, marginTop:18 }}>to</span>
-            <div style={{ flex:1 }}>
+            <span style={{ fontSize:11, fontWeight:700, color:"#94A3B8", flexShrink:0, marginTop:18 }}>to</span>
+            <div style={{ flex:1, minWidth:0 }}>
               <div style={{ fontSize:10, color:"#94A3B8", fontWeight:600, marginBottom:4 }}>END</div>
               <input
                 type="time"
                 value={form.timeEnd||""}
                 onChange={e => update("timeEnd", e.target.value)}
-                style={{ ...inputStyle, textAlign:"center", fontSize:15, fontWeight:700, color:"#0F172A" }}
+                style={{ ...inputStyle, textAlign:"center", fontSize:13, fontWeight:700, color:"#0F172A", padding:"10px 4px" }}
               />
             </div>
           </div>
@@ -3493,9 +3517,25 @@ function PostEventForm({ officer, onPost, onClose }) {
               </div>
             </div>
           ))}
+          {/* Armed Officer row */}
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 100px", padding:"8px 12px", borderBottom:"1px solid #F1F5F9", alignItems:"center", background:"#FEF2F2" }}>
+            <div>
+              <span style={{ fontSize:13, color:"#DC2626", fontWeight:700 }}>🔫 Armed Officer</span>
+              <span style={{ fontSize:10, color:"#94A3B8", display:"block", marginTop:1 }}>Only armed officers can fill these slots</span>
+            </div>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:0 }}>
+              <button onClick={() => update("armedSlots", Math.max(0,(form.armedSlots||0)-1))}
+                style={{ width:24, height:26, borderRadius:"5px 0 0 5px", border:"1px solid #FECACA", background:"#FEF2F2", color:"#DC2626", fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>−</button>
+              <div style={{ width:28, height:26, border:"1px solid #FECACA", borderLeft:"none", borderRight:"none", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, color:"#DC2626", background:"#fff" }}>
+                {form.armedSlots||0}
+              </div>
+              <button onClick={() => update("armedSlots", Math.min(10,(form.armedSlots||0)+1))}
+                style={{ width:24, height:26, borderRadius:"0 5px 5px 0", border:"1px solid #FECACA", background:"#DC2626", color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>+</button>
+            </div>
+          </div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 100px", padding:"8px 12px", background:"#EFF6FF", alignItems:"center" }}>
             <span style={{ fontSize:12, fontWeight:700, color:"#1D4ED8" }}>Total Slots</span>
-            <span style={{ fontSize:15, fontWeight:900, color:"#1D4ED8", textAlign:"center", display:"block" }}>{totalSlots}</span>
+            <span style={{ fontSize:15, fontWeight:900, color:"#1D4ED8", textAlign:"center", display:"block" }}>{totalSlots + (form.armedSlots||0)}</span>
           </div>
         </div>
       </div>
@@ -3853,6 +3893,7 @@ function AnalyticsDashboard({ events, confirmed, cancelRequests, officers, darkM
                 <div style={{ fontSize: 10, color: sub }}>{off.badge} · {off.rank}</div>
               </div>
               <Badge variant="primary">{off.rank.split(" ")[0]}</Badge>
+                  {off.armed && <Badge variant="danger">🔫 Armed</Badge>}
             </div>
           );
         })}
@@ -4335,10 +4376,20 @@ export default function App() {
       return;
     }
 
+    // Armed slot enforcement — check if this is an armed-required signup
+    const isArmedSignup = signupType === "armed";
+    if (isArmedSignup && !officer?.armed) {
+      showToast("This slot requires an armed officer.", "warn");
+      return;
+    }
+    // If event has armed slots remaining and officer is armed, flag as armed slot
+    const filledArmedSlots = confirmed.filter(c => c.eventId === eventId && c.armedSlot).length;
+    const useArmedSlot = officer?.armed && (ev.armedSlots || 0) > filledArmedSlots;
+
     setEvents(prev => prev.map(e => e.id === eventId ? { ...e, filled: e.filled + 1 } : e));
-    setConfirmed(prev => [...prev, { eventId, signedAt: Date.now() }]);
-    addNotif(`You've been confirmed for ${ev.title}.`, "success");
-    showToast("Signed up successfully! Pending approval.", "success");
+    setConfirmed(prev => [...prev, { eventId, signedAt: Date.now(), armedSlot: useArmedSlot }]);
+    addNotif(`You've been confirmed for ${ev.title}.${useArmedSlot ? " 🔫 Armed assignment." : ""}`, "success");
+    showToast(`Signed up successfully!${useArmedSlot ? " Armed slot confirmed." : ""}`, "success");
   };
 
   // ── Join waitlist (timestamp-ordered queue) ────────────────────────────────
@@ -4403,6 +4454,8 @@ export default function App() {
     isInGracePeriod,
     hasGracePeriodSignup,
     gracePeriodBlocksSignup: (ev) => isInGracePeriod(ev) && hasGracePeriodSignup(),
+    // Pass officer so EventCard can check armed status
+    officer,
     getGraceTimeLeft: (ev) => {
       if (!ev?.postedAt) return null;
       const elapsed = Date.now() - ev.postedAt;
