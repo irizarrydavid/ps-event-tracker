@@ -2601,16 +2601,23 @@ function SignupConfirmModal({ event, officer, onConfirm, onClose }) {
   const tc = typeColors[event.type] || "#475569";
 
   return (
-    <div style={{
-      position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)",
-      zIndex: 500, display: "flex", alignItems: "flex-end", justifyContent: "center",
-      fontFamily: "'DM Sans', system-ui, sans-serif",
-    }}>
-      <div className="slide-up-in" style={{
-        background: "#fff", borderRadius: "16px 16px 0 0",
-        padding: "24px 20px 40px", width: "100%", maxWidth: 430,
-        boxShadow: "0 -8px 40px rgba(0,0,0,0.2)",
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)",
+        zIndex: 500, display: "flex", alignItems: "flex-end", justifyContent: "center",
+        fontFamily: "'DM Sans', system-ui, sans-serif",
       }}>
+      <div
+        className="slide-up-in"
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: "#fff", borderRadius: "16px 16px 0 0",
+          padding: "24px 20px 0px", width: "100%", maxWidth: 430,
+          boxShadow: "0 -8px 40px rgba(0,0,0,0.2)",
+          maxHeight: "90vh", overflowY: "auto",
+          paddingBottom: "max(32px, env(safe-area-inset-bottom, 32px))",
+        }}>
         {/* Handle bar */}
         <div style={{ width: 40, height: 4, borderRadius: 99, background: "#E2E8F0", margin: "0 auto 20px" }} />
 
@@ -2697,7 +2704,7 @@ function SignupConfirmModal({ event, officer, onConfirm, onClose }) {
         )}
 
         {/* Action buttons */}
-        <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
           <button onClick={onClose} style={{
             flex: 1, padding: "13px 0", borderRadius: 10,
             border: "1.5px solid #E2E8F0", background: "#fff",
@@ -2705,9 +2712,19 @@ function SignupConfirmModal({ event, officer, onConfirm, onClose }) {
           }}>
             Cancel
           </button>
-          <Button variant="primary" size="lg" onClick={onConfirm} style={{ flex:2, borderRadius:10, boxShadow:"0 4px 14px rgba(29,78,216,0.35)" }}>
+          <button onClick={onConfirm} style={{
+            flex: 2, padding: "13px 0", borderRadius: 10, border: "none",
+            background: "#1D4ED8", color: "#fff", fontWeight: 800,
+            fontSize: 15, cursor: "pointer",
+            boxShadow: "0 4px 14px rgba(29,78,216,0.35)",
+            WebkitTapHighlightColor: "transparent",
+          }}>
             Confirm Sign-Up ✓
-          </Button>
+          </button>
+        </div>
+        {/* Safe area spacer for iPhone home bar */}
+        <div style={{ height: "env(safe-area-inset-bottom, 20px)", minHeight: 20 }} />
+          </button>
         </div>
       </div>
     </div>
