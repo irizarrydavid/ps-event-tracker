@@ -298,13 +298,13 @@ const isLtPlus       = (rank) => RANK_LEVEL[rank] >= 5;  // Lt and above
 const GRACE_PERIOD_MS = 72 * 60 * 60 * 1000; // 72 hours in milliseconds
 
 const EVENTS_SEED = [
-  { id:1, title:"Spring Commencement", armedSlots:2,    date:"May 14",  time:"0600-1400", type:"COMMENCEMENT", slots:6, filled:4, hold:false, status:"OPEN",   postedAt: Date.now() - (80 * 60 * 60 * 1000) }, // posted 80h ago — grace elapsed
-  { id:2, title:"Basketball Tournament",  date:"May 11",  time:"1000-2000", type:"ATHLETICS",    slots:4, filled:4, hold:false, status:"FULL",   postedAt: Date.now() - (90 * 60 * 60 * 1000) }, // posted 90h ago — grace elapsed
-  { id:3, title:"Alumni Gala", armedSlots:1,            date:"May 18",  time:"1800-2300", type:"SPECIAL",      slots:3, filled:1, hold:false, status:"OPEN",   postedAt: Date.now() - (75 * 60 * 60 * 1000) }, // posted 75h ago — grace elapsed
-  { id:4, title:"Fire Watch - 17NLex",    date:"May 9",   time:"0000-0800", type:"FIRE WATCH",   slots:2, filled:2, hold:false, status:"ACTIVE", postedAt: Date.now() - (48 * 60 * 60 * 1000) }, // posted 48h ago — grace active
-  { id:5, title:"New Student Orientation",date:"May 21",  time:"0800-1600", type:"STUDENT LIFE", slots:5, filled:2, hold:false, status:"OPEN",   postedAt: Date.now() - (24 * 60 * 60 * 1000) }, // posted 24h ago — grace active
-  { id:6, title:"Board of Trustees Mtg",  date:"May 27",  time:"0900-1700", type:"SPECIAL",      slots:3, filled:0, hold:false, status:"OPEN",   postedAt: Date.now() - (12 * 60 * 60 * 1000) }, // posted 12h ago — grace active
-  { id:7, title:"Friday Evening Patrol",  date:"May 15",  time:"1600-0000", type:"PATROL",       slots:4, filled:3, hold:false, status:"OPEN",   postedAt: Date.now() - (6  * 60 * 60 * 1000) }, // posted 6h ago  — grace active
+  { id:1, title:"Spring Commencement", armedSlots:2,    date:"May 14",  time:"0600-1400", type:"COMMENCEMENT", slots:6, filled:4, hold:false, status:"OPEN",   postedAt: Date.now() - (4  * 60 * 60 * 1000), waitQueue:[] }, // posted 4h ago  — grace ACTIVE
+  { id:2, title:"Basketball Tournament",               date:"May 11",  time:"1000-2000", type:"ATHLETICS",    slots:4, filled:4, hold:false, status:"FULL",   postedAt: Date.now() - (90 * 60 * 60 * 1000), waitQueue:[] }, // posted 90h ago — grace elapsed (full event)
+  { id:3, title:"Alumni Gala", armedSlots:1,           date:"May 18",  time:"1800-2300", type:"SPECIAL",      slots:3, filled:1, hold:false, status:"OPEN",   postedAt: Date.now() - (8  * 60 * 60 * 1000), waitQueue:[] }, // posted 8h ago  — grace ACTIVE
+  { id:4, title:"Fire Watch - 17NLex",                 date:"May 9",   time:"0000-0800", type:"FIRE WATCH",   slots:2, filled:2, hold:false, status:"ACTIVE", postedAt: Date.now() - (48 * 60 * 60 * 1000), waitQueue:[] }, // posted 48h ago — grace ACTIVE (full)
+  { id:5, title:"New Student Orientation",             date:"May 21",  time:"0800-1600", type:"STUDENT LIFE", slots:5, filled:2, hold:false, status:"OPEN",   postedAt: Date.now() - (24 * 60 * 60 * 1000), waitQueue:[] }, // posted 24h ago — grace ACTIVE
+  { id:6, title:"Board of Trustees Mtg",               date:"May 27",  time:"0900-1700", type:"SPECIAL",      slots:3, filled:0, hold:false, status:"OPEN",   postedAt: Date.now() - (80 * 60 * 60 * 1000), waitQueue:[] }, // posted 80h ago — grace elapsed
+  { id:7, title:"Friday Evening Patrol",               date:"May 15",  time:"1600-0000", type:"PATROL",       slots:4, filled:3, hold:false, status:"OPEN",   postedAt: Date.now() - (85 * 60 * 60 * 1000), waitQueue:[] }, // posted 85h ago — grace elapsed
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -333,7 +333,7 @@ const TOURS = {
       {
         id: "hold-status",
         title: "Your Hold Status",
-        body: "This green banner confirms your hold is cleared. After being approved for an event, a 72-hour hold is automatically placed — you won't be able to sign up for another event during that window.",
+        body: "This banner shows your current sign-up status at a glance. Green means you are clear to sign up for any event. Amber means the 72-hour grace period is active and shows exactly how much time remains before additional sign-ups unlock.",
         target: "hold-status", position: "bottom",
         nextLabel: "Got it",
       },
@@ -1305,18 +1305,48 @@ function Dashboard({ officer, signups, handleSignup, handleWaitlist, handleCance
         </button>
       </div>
 
-      {/* Hold status */}
-      <div id="hold-status" style={{
-        background: "#F0FDF4", border: "1px solid #BBF7D0",
-        borderRadius: 10, padding: "12px 14px", marginBottom: 12,
-        display: "flex", alignItems: "center", gap: 10,
-      }}>
-        <span style={{ fontSize: 20 }}>✅</span>
-        <div>
-          <div style={{ fontWeight: 800, color: "#047857", fontSize: 14 }}>Hold Cleared</div>
-          <div style={{ fontSize: 12, color: "#065F46" }}>No active hold. You may sign up for any available event.</div>
-        </div>
-      </div>
+      {/* Dynamic status banner — changes based on grace period */}
+      {(() => {
+        const graceSignup = signups.hasGracePeriodSignup && signups.hasGracePeriodSignup();
+        const graceEvent = graceSignup
+          ? events.find(ev => signups.isInGracePeriod(ev) && signups.confirmed.includes(ev.id))
+          : null;
+        const graceTimeLeft = graceEvent ? signups.getGraceTimeLeft(graceEvent) : null;
+
+        if (graceSignup && graceTimeLeft) {
+          // Amber — grace period active
+          return (
+            <div id="hold-status" style={{
+              background: "#FFFBEB", border: "1px solid #FDE68A",
+              borderRadius: 10, padding: "12px 14px", marginBottom: 12,
+              display: "flex", alignItems: "center", gap: 10,
+            }}>
+              <span style={{ fontSize: 20 }}>⏱</span>
+              <div>
+                <div style={{ fontWeight: 800, color: "#92400E", fontSize: 14 }}>Grace Period Active</div>
+                <div style={{ fontSize: 12, color: "#78350F" }}>
+                  You signed up during the 72-hour window. Additional sign-ups unlock in {graceTimeLeft}.
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        // Green — all clear
+        return (
+          <div id="hold-status" style={{
+            background: "#F0FDF4", border: "1px solid #BBF7D0",
+            borderRadius: 10, padding: "12px 14px", marginBottom: 12,
+            display: "flex", alignItems: "center", gap: 10,
+          }}>
+            <span style={{ fontSize: 20 }}>✅</span>
+            <div>
+              <div style={{ fontWeight: 800, color: "#047857", fontSize: 14 }}>Hold Cleared</div>
+              <div style={{ fontSize: 12, color: "#065F46" }}>No active hold. You may sign up for any available event.</div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Stats row */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
@@ -2953,6 +2983,162 @@ function SgtApprovals({ cancelRequests, onApprove, onDeny, officer, darkMode = f
   );
 }
 
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// RESCHEDULE EVENT MODAL
+// ═══════════════════════════════════════════════════════════════════════════════
+function RescheduleModal({ event, onConfirm, onClose, darkMode = false }) {
+  const [newDate, setNewDate]   = useState("");
+  const [timeStart, setTimeStart] = useState("");
+  const [timeEnd, setTimeEnd]   = useState("");
+  const [reason, setReason]     = useState("");
+
+  const isValid = newDate && timeStart && timeEnd;
+  const formattedTime = timeStart && timeEnd ? `${timeStart}-${timeEnd}` : "";
+
+  const bg   = darkMode ? "#1E293B" : "#fff";
+  const bg2  = darkMode ? "#0F172A" : "#F8FAFC";
+  const text = darkMode ? "#F1F5F9" : "#0F172A";
+  const sub  = darkMode ? "#94A3B8" : "#64748B";
+  const bdr  = darkMode ? "#334155" : "#E2E8F0";
+
+  const inputStyle = {
+    width: "100%", padding: "11px 14px", borderRadius: 8,
+    border: `1.5px solid ${bdr}`, fontSize: 14,
+    background: bg2, color: text,
+    boxSizing: "border-box", fontFamily: "'DM Sans', system-ui, sans-serif",
+    outline: "none",
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)",
+        zIndex: 10002, display: "flex", alignItems: "flex-start", justifyContent: "center",
+        fontFamily: "'DM Sans', system-ui, sans-serif",
+      }}>
+      <div
+        className="slide-down-in"
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: bg, borderRadius: "0 0 20px 20px",
+          padding: "20px 20px 28px", width: "100%", maxWidth: 430,
+          boxShadow: "0 8px 40px rgba(0,0,0,0.2)",
+          maxHeight: "90vh", overflowY: "auto",
+        }}>
+        {/* Handle bar */}
+        <div style={{ width: 40, height: 4, borderRadius: 99, background: bdr, margin: "0 auto 16px" }} />
+
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "#D97706", letterSpacing: 1, textTransform: "uppercase", marginBottom: 3 }}>RESCHEDULE EVENT</div>
+            <div style={{ fontSize: 18, fontWeight: 900, color: text }}>{event.title}</div>
+            <div style={{ fontSize: 12, color: sub, marginTop: 2 }}>
+              Currently: {event.date} · {event.time}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, color: sub, cursor: "pointer", padding: 4 }}>✕</button>
+        </div>
+
+        {/* Rodney Memo notice */}
+        <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, padding: "10px 12px", marginBottom: 16 }}>
+          <div style={{ fontSize: 11, color: "#92400E", fontWeight: 600, lineHeight: 1.6 }}>
+            📋 Per Rodney Memo: Rescheduling notifies all confirmed officers first and starts a fresh 72-hour grace period.
+          </div>
+        </div>
+
+        {/* New Date */}
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontSize: 10, fontWeight: 700, color: sub, letterSpacing: 1, textTransform: "uppercase", display: "block", marginBottom: 5 }}>
+            New Date *
+          </label>
+          <input
+            type="date"
+            value={newDate}
+            onChange={e => setNewDate(e.target.value)}
+            style={inputStyle}
+          />
+        </div>
+
+        {/* New Time */}
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontSize: 10, fontWeight: 700, color: sub, letterSpacing: 1, textTransform: "uppercase", display: "block", marginBottom: 5 }}>
+            New Time *
+          </label>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, color: sub, fontWeight: 600, marginBottom: 4 }}>START</div>
+              <input
+                type="time"
+                value={timeStart}
+                onChange={e => setTimeStart(e.target.value)}
+                style={{ ...inputStyle, textAlign: "center", fontSize: 13, fontWeight: 700, padding: "10px 4px" }}
+              />
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: sub, flexShrink: 0, marginTop: 18 }}>to</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, color: sub, fontWeight: 600, marginBottom: 4 }}>END</div>
+              <input
+                type="time"
+                value={timeEnd}
+                onChange={e => setTimeEnd(e.target.value)}
+                style={{ ...inputStyle, textAlign: "center", fontSize: 13, fontWeight: 700, padding: "10px 4px" }}
+              />
+            </div>
+          </div>
+          {timeStart && timeEnd && (
+            <div style={{ fontSize: 11, color: "#059669", fontWeight: 700, marginTop: 5 }}>
+              ✓ New shift: {timeStart}–{timeEnd}
+            </div>
+          )}
+        </div>
+
+        {/* Reason */}
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ fontSize: 10, fontWeight: 700, color: sub, letterSpacing: 1, textTransform: "uppercase", display: "block", marginBottom: 5 }}>
+            Reason for Reschedule
+          </label>
+          <textarea
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+            placeholder="Optional — will be logged in the audit trail and included in officer notification..."
+            style={{ ...inputStyle, height: 80, resize: "none" }}
+          />
+        </div>
+
+        {/* Action buttons */}
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={onClose} style={{
+            flex: 1, padding: "13px 0", borderRadius: 10,
+            border: `1.5px solid ${bdr}`, background: bg,
+            color: sub, fontWeight: 700, fontSize: 14, cursor: "pointer",
+          }}>
+            Cancel
+          </button>
+          <button
+            onClick={() => isValid && onConfirm(
+              new Date(newDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+              formattedTime,
+              reason
+            )}
+            disabled={!isValid}
+            style={{
+              flex: 2, padding: "13px 0", borderRadius: 10, border: "none",
+              background: isValid ? "#D97706" : "#CBD5E1",
+              color: "#fff", fontWeight: 800, fontSize: 15,
+              cursor: isValid ? "pointer" : "not-allowed",
+              WebkitTapHighlightColor: "transparent",
+            }}>
+            Confirm Reschedule
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // SUPERVISOR DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -3003,6 +3189,7 @@ function SupervisorDashboard({ officer, events, setEvents, confirmed, setConfirm
   const [tab, setTab] = useState("events");
   const [showPostForm, setShowPostForm] = useState(false);
   const [showFireWatchForm, setShowFireWatchForm] = useState(false);
+  const [rescheduleModal, setRescheduleModal] = useState(null); // event object
   const [auditLog, setAuditLog] = useState([
     { id:1, actor:"Dev Mehta", action:"Posted Spring Commencement", timestamp: Date.now()-86400000*2 },
     { id:2, actor:"Sandra Williams", action:"Approved cancel request — James Carter", timestamp: Date.now()-3600000*5 },
@@ -3139,21 +3326,8 @@ function SupervisorDashboard({ officer, events, setEvents, confirmed, setConfirm
                   }} style={{ padding:"7px 12px", borderRadius:6, border:"1.5px solid #EF4444", background:"#fff", color:"#EF4444", fontWeight:700, fontSize:11, cursor:"pointer" }}>
                     Cancel Event
                   </button>
-                  <button onClick={() => {
-                    const newDate = prompt("New date for duplicate (e.g. Jun 15):");
-                    if (newDate) {
-                      postEvent({ ...ev, title: ev.title, date: newDate, filled: 0, waitQueue: [] });
-                      logAction(`Duplicated event: ${ev.title} → ${newDate}`);
-                      showToast(`Event duplicated for ${newDate}. Officers notified.`, "success");
-                    }
-                  }} style={{ padding:"7px 12px", borderRadius:6, border:"1.5px solid #1D4ED8", background:"#fff", color:"#1D4ED8", fontWeight:700, fontSize:11, cursor:"pointer" }}>
-                    Duplicate
-                  </button>
-                  <button onClick={() => {
-                    const newDate = prompt("New date (e.g. May 30):");
-                    const newTime = prompt("New time (e.g. 0800-1600):");
-                    if (newDate && newTime) { rescheduleEvent(ev.id, newDate, newTime); logAction(`Rescheduled ${ev.title} to ${newDate} ${newTime}`); }
-                  }} style={{ padding:"7px 12px", borderRadius:6, border:"1.5px solid #F59E0B", background:"#fff", color:"#D97706", fontWeight:700, fontSize:11, cursor:"pointer" }}>
+
+                  <button onClick={() => setRescheduleModal(ev)} style={{ padding:"7px 12px", borderRadius:6, border:"1.5px solid #F59E0B", background:"#fff", color:"#D97706", fontWeight:700, fontSize:11, cursor:"pointer" }}>
                     Reschedule
                   </button>
                   {canOverride && (
@@ -3283,6 +3457,20 @@ function SupervisorDashboard({ officer, events, setEvents, confirmed, setConfirm
         </div>
       )}
 
+      {/* Reschedule Modal */}
+      {rescheduleModal && (
+        <RescheduleModal
+          event={rescheduleModal}
+          darkMode={darkMode}
+          onConfirm={(newDate, newTime, reason) => {
+            rescheduleEvent(rescheduleModal.id, newDate, newTime);
+            logAction(`Rescheduled "${rescheduleModal.title}" to ${newDate} ${newTime}${reason ? ` — Reason: ${reason}` : ""}`);
+            setRescheduleModal(null);
+          }}
+          onClose={() => setRescheduleModal(null)}
+        />
+      )}
+
       {/* Overrides Tab — Lieutenant+ only */}
       {tab === "overrides" && canOverride && (
         <div>
@@ -3309,21 +3497,27 @@ function SupervisorDashboard({ officer, events, setEvents, confirmed, setConfirm
 function PostEventForm({ officer, onPost, onClose }) {
   const [form, setForm] = useState({
     title:"", type:"SPECIAL", date:"", time:"", timeStart:"", timeEnd:"", location:"", notes:"",
-    gracePeriodActive: false, armedSlots: 0,
+    gracePeriodActive: false, armedSlots: 0, simpleSlots: 1,
     rankSlots: { "Campus Security Assistant":0, "CPO":0, "Corporal":0, "Sergeant":0, "Specialist":0 },
   });
-  const [queue, setQueue] = useState([]); // multi-event queue
+  const [queue, setQueue] = useState([]);
+  const [slotMode, setSlotMode] = useState("simple"); // "simple" | "byRank"
 
-  const totalSlots = Object.values(form.rankSlots).reduce((a,b) => a+b, 0);
+  const totalSlots = slotMode === "simple"
+    ? (form.simpleSlots || 1)
+    : Object.values(form.rankSlots).reduce((a,b) => a+b, 0);
   const isValid = form.title && form.date && form.timeStart && form.timeEnd && totalSlots > 0;
 
   const update = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
-  const resetForm = () => setForm({
-    title:"", type:"SPECIAL", date:"", time:"", timeStart:"", timeEnd:"", location:"", notes:"",
-    gracePeriodActive: false,
-    rankSlots: { "Campus Security Assistant":0, "CPO":0, "Corporal":0, "Sergeant":0, "Specialist":0 },
-  });
+  const resetForm = () => {
+    setForm({
+      title:"", type:"SPECIAL", date:"", time:"", timeStart:"", timeEnd:"", location:"", notes:"",
+      gracePeriodActive: false, armedSlots: 0, simpleSlots: 1,
+      rankSlots: { "Campus Security Assistant":0, "CPO":0, "Corporal":0, "Sergeant":0, "Specialist":0 },
+    });
+    setSlotMode("simple");
+  };
 
   // Build event object from current form — compute formattedTime here to avoid stale closure
   const buildEvent = () => {
@@ -3331,7 +3525,9 @@ function PostEventForm({ officer, onPost, onClose }) {
     return {
       title: form.title, type: form.type, date: form.date, time: formattedTime,
       location: form.location, notes: form.notes, hold: false,
-      slots: totalSlots, rankSlots: { ...form.rankSlots },
+      slots: totalSlots,
+      rankSlots: slotMode === "byRank" ? { ...form.rankSlots } : {},
+      slotMode,
       armedSlots: form.armedSlots || 0,
       status: form.status || "OPEN",
     };
@@ -3496,46 +3692,74 @@ function PostEventForm({ officer, onPost, onClose }) {
         </div>
       </div>
 
-      {/* Rank quota builder */}
+      {/* Officers Needed — mode toggle */}
       <div style={{ marginBottom:12 }}>
-        <label style={labelStyle}>Officers Needed by Rank *</label>
-        <div style={{ border:"1px solid #E2E8F0", borderRadius:8, overflow:"hidden" }}>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 100px", padding:"7px 12px", background:"#F8FAFC", borderBottom:"1px solid #E2E8F0" }}>
-            <span style={{ fontSize:10, fontWeight:700, color:"#64748B", letterSpacing:0.8 }}>RANK</span>
-            <span style={{ fontSize:10, fontWeight:700, color:"#64748B", letterSpacing:0.8, textAlign:"center" }}>SLOTS</span>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+          <label style={labelStyle}>Officers Needed *</label>
+          {/* Mode toggle */}
+          <div style={{ display:"flex", gap:0, border:"1px solid #E2E8F0", borderRadius:8, overflow:"hidden" }}>
+            {[["simple","Any Rank"],["byRank","By Rank"]].map(([mode, label]) => (
+              <button key={mode} onClick={() => setSlotMode(mode)} style={{
+                padding:"5px 12px", border:"none", fontSize:11, fontWeight:700, cursor:"pointer",
+                background: slotMode === mode ? "#1D4ED8" : "#F8FAFC",
+                color: slotMode === mode ? "#fff" : "#64748B",
+              }}>{label}</button>
+            ))}
           </div>
-          {SIGNABLE_RANKS.map(rank => (
-            <div key={rank} style={{ display:"grid", gridTemplateColumns:"1fr 100px", padding:"8px 12px", borderBottom:"1px solid #F1F5F9", alignItems:"center" }}>
-              <span style={{ fontSize:13, color:"#374151" }}>{rank}</span>
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:0 }}>
-                <button
-                  onClick={() => update("rankSlots", { ...form.rankSlots, [rank]: Math.max(0, (form.rankSlots[rank]||0) - 1) })}
-                  style={{
-                    width:28, height:28, borderRadius:"6px 0 0 6px",
-                    border:"1px solid #E2E8F0", background:"#F8FAFC",
-                    color:"#374151", fontSize:16, fontWeight:700,
-                    cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
-                  }}>−</button>
-                <div style={{
-                  width:32, height:28, border:"1px solid #E2E8F0", borderLeft:"none", borderRight:"none",
-                  display:"flex", alignItems:"center", justifyContent:"center",
-                  fontSize:13, fontWeight:800, color:"#0F172A", background:"#fff",
-                }}>
-                  {form.rankSlots[rank]||0}
+        </div>
+
+        {/* Simple mode — just a number */}
+        {slotMode === "simple" && (
+          <div style={{ border:"1px solid #E2E8F0", borderRadius:8, overflow:"hidden" }}>
+            <div style={{ padding:"12px", background:"#F8FAFC", borderBottom:"1px solid #E2E8F0" }}>
+              <div style={{ fontSize:12, color:"#64748B", marginBottom:8 }}>How many officers do you need? Any rank can fill these slots.</div>
+              <div style={{ display:"flex", alignItems:"center", gap:0, justifyContent:"center" }}>
+                <button onClick={() => update("simpleSlots", Math.max(1,(form.simpleSlots||1)-1))}
+                  style={{ width:40, height:40, borderRadius:"8px 0 0 8px", border:"1px solid #E2E8F0", background:"#fff", color:"#374151", fontSize:20, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>−</button>
+                <div style={{ width:60, height:40, border:"1px solid #E2E8F0", borderLeft:"none", borderRight:"none", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, fontWeight:900, color:"#1D4ED8", background:"#fff" }}>
+                  {form.simpleSlots||1}
                 </div>
-                <button
-                  onClick={() => update("rankSlots", { ...form.rankSlots, [rank]: Math.min(10, (form.rankSlots[rank]||0) + 1) })}
-                  style={{
-                    width:28, height:28, borderRadius:"0 6px 6px 0",
-                    border:"1px solid #E2E8F0", background:"#1D4ED8",
-                    color:"#fff", fontSize:16, fontWeight:700,
-                    cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
-                  }}>+</button>
+                <button onClick={() => update("simpleSlots", Math.min(20,(form.simpleSlots||1)+1))}
+                  style={{ width:40, height:40, borderRadius:"0 8px 8px 0", border:"1px solid #E2E8F0", background:"#1D4ED8", color:"#fff", fontSize:20, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>+</button>
+              </div>
+              <div style={{ textAlign:"center", marginTop:6, fontSize:11, color:"#64748B" }}>
+                {form.simpleSlots||1} officer{(form.simpleSlots||1) > 1 ? "s" : ""} — any rank
               </div>
             </div>
-          ))}
-          {/* Armed Officer row */}
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 100px", padding:"8px 12px", borderBottom:"1px solid #F1F5F9", alignItems:"center", background:"#FEF2F2" }}>
+          </div>
+        )}
+
+        {/* By Rank mode — quota builder */}
+        {slotMode === "byRank" && (
+          <div style={{ border:"1px solid #E2E8F0", borderRadius:8, overflow:"hidden" }}>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 100px", padding:"7px 12px", background:"#F8FAFC", borderBottom:"1px solid #E2E8F0" }}>
+              <span style={{ fontSize:10, fontWeight:700, color:"#64748B", letterSpacing:0.8 }}>RANK</span>
+              <span style={{ fontSize:10, fontWeight:700, color:"#64748B", letterSpacing:0.8, textAlign:"center" }}>SLOTS</span>
+            </div>
+            {SIGNABLE_RANKS.map(rank => (
+              <div key={rank} style={{ display:"grid", gridTemplateColumns:"1fr 100px", padding:"8px 12px", borderBottom:"1px solid #F1F5F9", alignItems:"center" }}>
+                <span style={{ fontSize:13, color:"#374151" }}>{rank}</span>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:0 }}>
+                  <button onClick={() => update("rankSlots", { ...form.rankSlots, [rank]: Math.max(0,(form.rankSlots[rank]||0)-1) })}
+                    style={{ width:28, height:28, borderRadius:"6px 0 0 6px", border:"1px solid #E2E8F0", background:"#F8FAFC", color:"#374151", fontSize:16, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>−</button>
+                  <div style={{ width:32, height:28, border:"1px solid #E2E8F0", borderLeft:"none", borderRight:"none", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:800, color:"#0F172A", background:"#fff" }}>
+                    {form.rankSlots[rank]||0}
+                  </div>
+                  <button onClick={() => update("rankSlots", { ...form.rankSlots, [rank]: Math.min(10,(form.rankSlots[rank]||0)+1) })}
+                    style={{ width:28, height:28, borderRadius:"0 6px 6px 0", border:"1px solid #E2E8F0", background:"#1D4ED8", color:"#fff", fontSize:16, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>+</button>
+                </div>
+              </div>
+            ))}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 100px", padding:"8px 12px", background:"#EFF6FF", alignItems:"center" }}>
+              <span style={{ fontSize:12, fontWeight:700, color:"#1D4ED8" }}>Total Slots</span>
+              <span style={{ fontSize:15, fontWeight:900, color:"#1D4ED8", textAlign:"center", display:"block" }}>{totalSlots}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Armed Officer row — always shown below either mode */}
+        <div style={{ border:"1px solid #FECACA", borderRadius:8, overflow:"hidden", marginTop:8 }}>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 100px", padding:"8px 12px", alignItems:"center", background:"#FEF2F2" }}>
             <div>
               <span style={{ fontSize:13, color:"#DC2626", fontWeight:700 }}>Armed Officer</span>
               <span style={{ fontSize:10, color:"#94A3B8", display:"block", marginTop:1 }}>Only armed officers can fill these slots</span>
@@ -3550,10 +3774,12 @@ function PostEventForm({ officer, onPost, onClose }) {
                 style={{ width:24, height:26, borderRadius:"0 5px 5px 0", border:"1px solid #FECACA", background:"#DC2626", color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>+</button>
             </div>
           </div>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 100px", padding:"8px 12px", background:"#EFF6FF", alignItems:"center" }}>
-            <span style={{ fontSize:12, fontWeight:700, color:"#1D4ED8" }}>Total Slots</span>
-            <span style={{ fontSize:15, fontWeight:900, color:"#1D4ED8", textAlign:"center", display:"block" }}>{totalSlots + (form.armedSlots||0)}</span>
-          </div>
+        </div>
+
+        {/* Grand total */}
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 12px", background:"#EFF6FF", borderRadius:8, marginTop:8, border:"1px solid #BFDBFE" }}>
+          <span style={{ fontSize:12, fontWeight:700, color:"#1D4ED8" }}>Total Slots</span>
+          <span style={{ fontSize:16, fontWeight:900, color:"#1D4ED8" }}>{totalSlots + (form.armedSlots||0)}</span>
         </div>
       </div>
 
@@ -3957,7 +4183,7 @@ function MySchedule({ officer, confirmed, events, cancelRequests, darkMode }) {
 
       {/* Summary pills */}
       <div style={{ display:"flex", gap:8, marginBottom:16, flexWrap:"wrap" }}>
-        {[[`${myEvents.length} Confirmed`, "#1D4ED8", GREEN_PALE],
+        {[[`${myEvents.length} Confirmed`, "#1D4ED8", "#EFF6FF"],
           [`${myWaitlist.length} Waitlisted`, "#7C3AED", "#EDE9FE"],
           [`${myRequests.filter(r=>r.status==="pending").length} Pending`, "#D97706", "#FFFBEB"]].map(([label, color, bg3]) => (
           <div key={label} style={{ padding:"8px 14px", borderRadius:10, background:bg3, border:`1px solid ${color}33` }}>
@@ -4301,7 +4527,7 @@ export default function App() {
 
   // ── Confirmed signups: { eventId, signedAt } ─────────────────────────────
   const [confirmed, setConfirmed] = useState([
-    { eventId: 2, signedAt: Date.now() - 3600000 }
+    { eventId: 2, signedAt: Date.now() - (91 * 60 * 60 * 1000) } // Basketball Tournament — signed up 91h ago, grace expired
   ]);
 
   // ── Notifications ─────────────────────────────────────────────────────────
@@ -4543,9 +4769,16 @@ export default function App() {
   };
 
   const navTitles = {
-    dashboard: officer && isSpecialistPlus(officer.rank) ? "Admin Dashboard" : "Dashboard", schedule: "Calendar", "slot-release": "Slot Release",
-    "cancel-requests": "Cancel Requests", faq: "FAQ", settings: "Settings", profile: "My Profile",
+    dashboard: officer && isSpecialistPlus(officer.rank) ? "Admin Dashboard" : "Dashboard",
+    schedule: "Calendar",
+    "slot-release": "Slot Release",
+    "cancel-requests": "Cancel Requests",
+    faq: "FAQ",
+    settings: "Settings",
+    profile: "My Profile",
     approvals: "Approvals Queue",
+    myschedule: "My Schedule",
+    analytics: "Analytics",
   };
 
   const activeTour = tourState && tourState.roleKey ? TOURS[tourState.roleKey] : null;
