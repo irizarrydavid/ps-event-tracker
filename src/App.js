@@ -2724,8 +2724,6 @@ function SignupConfirmModal({ event, officer, onConfirm, onClose }) {
         </div>
         {/* Safe area spacer for iPhone home bar */}
         <div style={{ height: "env(safe-area-inset-bottom, 20px)", minHeight: 20 }} />
-          </button>
-        </div>
       </div>
     </div>
   );
