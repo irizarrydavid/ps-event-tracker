@@ -1374,29 +1374,6 @@ function Dashboard({ officer, signups, handleSignup, handleWaitlist, handleCance
         </div>
       )}
 
-      {signupModal && (
-        <SignupConfirmModal
-          event={events.find(e => e.id === signupModal)}
-          officer={officer}
-          onConfirm={() => {
-            handleSignup(signupModal);
-            setSignupModal(null);
-          }}
-          onClose={() => setSignupModal(null)}
-        />
-      )}
-
-      {cancelModal && (
-        <CancelRequestModal
-          event={events.find(e => e.id === cancelModal.eventId)}
-          type={cancelModal.type}
-          onSubmit={(reason) => {
-            submitCancelRequest(cancelModal.eventId, reason, cancelModal.type);
-            setCancelModal(null);
-          }}
-          onClose={() => setCancelModal(null)}
-        />
-      )}
     </div>
   );
 }
@@ -2741,7 +2718,7 @@ function CancelRequestModal({ event, onSubmit, onClose, type = "cancel" }) {
   return (
     <div style={{
       position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
-      zIndex: 500, display: "flex", alignItems: "flex-end", justifyContent: "center",
+      zIndex: 10002, display: "flex", alignItems: "flex-end", justifyContent: "center",
       fontFamily: "'DM Sans', system-ui, sans-serif",
     }}>
       <div className="slide-up-in" style={{
@@ -4648,6 +4625,32 @@ export default function App() {
       {nav === "profile"         && <Profile officer={officer} />}
       {nav === "settings"        && <Settings startTour={startTour} officer={officer} openAIKey={openAIKey} setOpenAIKey={setOpenAIKey} darkMode={darkMode} setDarkMode={setDarkMode} />}
       {toast && <Toast msg={toast.msg} type={toast.type} onDismiss={() => setToast(null)} />}
+
+      {/* Signup Confirm Modal — root level so nothing blocks it */}
+      {signupModal && (
+        <SignupConfirmModal
+          event={events.find(e => e.id === signupModal)}
+          officer={officer}
+          onConfirm={() => {
+            handleSignup(signupModal);
+            setSignupModal(null);
+          }}
+          onClose={() => setSignupModal(null)}
+        />
+      )}
+
+      {/* Cancel Request Modal — root level */}
+      {cancelModal && (
+        <CancelRequestModal
+          event={events.find(e => e.id === cancelModal.eventId)}
+          type={cancelModal.type}
+          onSubmit={(reason) => {
+            submitCancelRequest(cancelModal.eventId, reason, cancelModal.type);
+            setCancelModal(null);
+          }}
+          onClose={() => setCancelModal(null)}
+        />
+      )}
 
       {/* First-login tour prompt */}
       {firstLogin && (
