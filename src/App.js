@@ -4391,17 +4391,11 @@ export default function App() {
     // Memo rule: during 72h grace period only ONE signup allowed across all events
     if (isInGracePeriod(ev) && hasGracePeriodSignup()) {
       showToast("Policy: Only one sign-up allowed during the 72-hour grace period.", "warn");
-      addNotif("Sign-up blocked: You already have a signup during an active grace period. Additional sign-ups are permitted once the 72-hour window has elapsed.", "warn");
+      addNotif("Sign-up blocked: You already have a signup during an active grace period.", "warn");
       return;
     }
 
-    // Armed slot enforcement — check if this is an armed-required signup
-    const isArmedSignup = signupType === "armed";
-    if (isArmedSignup && !officer?.armed) {
-      showToast("This slot requires an armed officer.", "warn");
-      return;
-    }
-    // If event has armed slots remaining and officer is armed, flag as armed slot
+    // Armed slot tracking — flag signup as armed if officer is armed and slots remain
     const filledArmedSlots = confirmed.filter(c => c.eventId === eventId && c.armedSlot).length;
     const useArmedSlot = officer?.armed && (ev.armedSlots || 0) > filledArmedSlots;
 
