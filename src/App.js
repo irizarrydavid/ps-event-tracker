@@ -62,6 +62,10 @@ if (typeof document !== "undefined" && !document.getElementById("cuny-ps-animati
       from { transform: translateY(100%); opacity: 0; }
       to   { transform: translateY(0);    opacity: 1; }
     }
+    @keyframes slideDownIn {
+      from { transform: translateY(-100%); opacity: 0; }
+      to   { transform: translateY(0);     opacity: 1; }
+    }
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(8px); }
       to   { opacity: 1; transform: translateY(0);   }
@@ -86,6 +90,7 @@ if (typeof document !== "undefined" && !document.getElementById("cuny-ps-animati
       50%      { transform: scale(1.05); }
     }
     .slide-up-in  { animation: slideUpIn 0.32s cubic-bezier(0.32,0.72,0,1) forwards; }
+    .slide-down-in { animation: slideDownIn 0.32s cubic-bezier(0.32,0.72,0,1) forwards; }
     .fade-in      { animation: fadeIn 0.28s ease forwards; }
     .scale-in     { animation: scaleIn 0.28s cubic-bezier(0.34,1.56,0.64,1) forwards; }
     .toast-in     { animation: toastIn 0.3s cubic-bezier(0.34,1.2,0.64,1) forwards; }
@@ -1227,21 +1232,21 @@ function EventCard({ event, signups, onSignup, onWaitlist, onCancel, onRequestCa
             background: "#fff", color: "#64748B", fontWeight: 700, fontSize: 13, cursor: "pointer",
           }}>Leave Queue</button>
         )}
-        {!isSigned && !isWaited && !isFull && (() => {
-          const onlyArmedLeft = (event.armedSlots || 0) > 0 && event.filled >= (event.slots - (event.armedSlots || 0));
-          const blockedByArmed = onlyArmedLeft && !signups?.officer?.armed;
-          if (graceLocked) return (
-            <button disabled style={{ flex:1, padding:"9px 0", borderRadius:8, border:"1.5px solid #CBD5E1", background:"#F8FAFC", color:"#94A3B8", fontWeight:700, fontSize:12, cursor:"not-allowed" }}>🔒 Grace Period Active</button>
-          );
-          if (blockedByArmed) return (
-            <button disabled style={{ flex:1, padding:"9px 0", borderRadius:8, border:"1.5px solid #FECACA", background:"#FEF2F2", color:"#DC2626", fontWeight:700, fontSize:12, cursor:"not-allowed" }}>Armed Personnel Only</button>
-          );
-          return (
-            <button className="btn-press" onClick={() => onSignup(event.id)} style={{ flex:1, padding:"9px 0", borderRadius:8, border:"none", background:"#1D4ED8", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer" }}>
-              {"Sign Up"}
-            </button>
-          );
-        })()}
+        {!isSigned && !isWaited && !isFull && graceLocked && (
+          <button disabled style={{ flex:1, padding:"9px 0", borderRadius:8, border:"1.5px solid #CBD5E1", background:"#F8FAFC", color:"#94A3B8", fontWeight:700, fontSize:12, cursor:"not-allowed" }}>
+            🔒 Grace Period Active
+          </button>
+        )}
+        {!isSigned && !isWaited && !isFull && !graceLocked && (event.armedSlots||0) > 0 && event.filled >= (event.slots-(event.armedSlots||0)) && !signups?.officer?.armed && (
+          <button disabled style={{ flex:1, padding:"9px 0", borderRadius:8, border:"1.5px solid #FECACA", background:"#FEF2F2", color:"#DC2626", fontWeight:700, fontSize:12, cursor:"not-allowed" }}>
+            Armed Personnel Only
+          </button>
+        )}
+        {!isSigned && !isWaited && !isFull && !graceLocked && !((event.armedSlots||0) > 0 && event.filled >= (event.slots-(event.armedSlots||0)) && !signups?.officer?.armed) && (
+          <button onClick={() => onSignup(event.id)} style={{ flex:1, padding:"9px 0", borderRadius:8, border:"none", background:"#1D4ED8", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer", WebkitTapHighlightColor:"transparent" }}>
+            Sign Up
+          </button>
+        )}
         {!isSigned && !isWaited && isFull && (
           <button onClick={() => onWaitlist(event.id)} style={{
             flex: 1, padding: "9px 0", borderRadius: 8, border: "none",
@@ -1256,11 +1261,10 @@ function EventCard({ event, signups, onSignup, onWaitlist, onCancel, onRequestCa
 // ═══════════════════════════════════════════════════════════════════════════════
 // DASHBOARD VIEW
 // ═══════════════════════════════════════════════════════════════════════════════
-function Dashboard({ officer, signups, handleSignup, handleWaitlist, handleCancel, submitCancelRequest, isSgt, showToast, startTour, events, darkMode = false }) {
+function Dashboard({ officer, signups, handleSignup, handleWaitlist, handleCancel, submitCancelRequest, isSgt, showToast, startTour, events, darkMode = false, signupModal, setSignupModal, cancelModal, setCancelModal }) {
   const [tab, setTab] = useState("all");
-  const [cancelModal, setCancelModal] = useState(null);   // { eventId, type }
-  const [signupModal, setSignupModal] = useState(null);   // eventId
-  const onSignup   = (id) => setSignupModal(id);          // open confirm modal instead of direct signup
+  // signupModal and cancelModal lifted to root App — received as props
+  const onSignup = (id) => setSignupModal(id);
   const onWaitlist = (id) => handleWaitlist(id);
 
   const filtered = tab === "my"
@@ -2582,21 +2586,20 @@ function SignupConfirmModal({ event, officer, onConfirm, onClose }) {
       onClick={onClose}
       style={{
         position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)",
-        zIndex: 500, display: "flex", alignItems: "flex-end", justifyContent: "center",
+        zIndex: 10002, display: "flex", alignItems: "flex-start", justifyContent: "center",
         fontFamily: "'DM Sans', system-ui, sans-serif",
       }}>
       <div
-        className="slide-up-in"
+        className="slide-down-in"
         onClick={e => e.stopPropagation()}
         style={{
-          background: "#fff", borderRadius: "16px 16px 0 0",
-          padding: "24px 20px 0px", width: "100%", maxWidth: 430,
-          boxShadow: "0 -8px 40px rgba(0,0,0,0.2)",
+          background: "#fff", borderRadius: "0 0 20px 20px",
+          padding: "20px 20px 28px", width: "100%", maxWidth: 430,
+          boxShadow: "0 8px 40px rgba(0,0,0,0.2)",
           maxHeight: "90vh", overflowY: "auto",
-          paddingBottom: "max(32px, env(safe-area-inset-bottom, 32px))",
         }}>
-        {/* Handle bar */}
-        <div style={{ width: 40, height: 4, borderRadius: 99, background: "#E2E8F0", margin: "0 auto 20px" }} />
+        {/* Close bar at top */}
+        <div style={{ width: 40, height: 4, borderRadius: 99, background: "#E2E8F0", margin: "0 auto 16px" }} />
 
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
@@ -4177,6 +4180,8 @@ export default function App() {
   const [toast, setToast]       = useState(null);
   const [tourState, setTourState] = useState(null);
   const [notifOpen, setNotifOpen]   = useState(false);
+  const [signupModal, setSignupModal] = useState(null);  // eventId — lifted from Dashboard
+  const [cancelModal, setCancelModal] = useState(null);  // { eventId, type } — lifted from Dashboard
   const [darkMode, setDarkMode]     = useState(false);
 
   // Apply dark mode to body
@@ -4613,7 +4618,7 @@ export default function App() {
             rescheduleEvent={rescheduleEvent}
             darkMode={darkMode}
           />
-        : nav === "dashboard" && <Dashboard officer={officer} signups={signups} handleSignup={handleSignup} handleWaitlist={handleWaitlist} handleCancel={handleCancel} submitCancelRequest={submitCancelRequest} isSgt={isSgtPlus(officer?.rank)} showToast={showToast} startTour={startTour} events={events} darkMode={darkMode} />
+        : nav === "dashboard" && <Dashboard officer={officer} signups={signups} handleSignup={handleSignup} handleWaitlist={handleWaitlist} handleCancel={handleCancel} submitCancelRequest={submitCancelRequest} isSgt={isSgtPlus(officer?.rank)} showToast={showToast} startTour={startTour} events={events} darkMode={darkMode} signupModal={signupModal} setSignupModal={setSignupModal} cancelModal={cancelModal} setCancelModal={setCancelModal} />
       }
       {nav === "schedule"        && <Schedule signups={signups} events={events} darkMode={darkMode} />}
       {nav === "slot-release"    && <SlotRelease showToast={showToast} />}
