@@ -1334,7 +1334,7 @@ function Dashboard({ officer, signups, handleSignup, handleWaitlist, handleCance
 
         // Green — all clear
         return (
-          <div id="hold-status" style={{
+          <div style={{
             background: "#F0FDF4", border: "1px solid #BBF7D0",
             borderRadius: 10, padding: "12px 14px", marginBottom: 12,
             display: "flex", alignItems: "center", gap: 10,
@@ -3146,41 +3146,42 @@ function RescheduleModal({ event, onConfirm, onClose, darkMode = false }) {
 const SIGNABLE_RANKS = ["Campus Security Assistant","CPO","Corporal","Sergeant","Specialist"];
 const RANK_ORDER = { "Campus Security Assistant":0,"CPO":1,"Corporal":2,"Sergeant":3,"Specialist":4,"Lieutenant":5,"Director of Public Safety":6 };
 const LOCATIONS = [
-  { building: "Subotnick Financial Services Center (151 E 25th St)", spaces: [
-    "Development Classroom - Computer Lab",
-    "Seminar Room - Classroom",
-    "Auxiliary Gym",
-    "Trading Floor",
+  { building: "135 E. 22nd Street (Admin Building)", spaces: [
+    "Eli and Claire Mason Seminar Room 301",
+    "Eli and Claire Mason Seminar Room 308",
   ]},
-  { building: "Zicklin Executive Programs (55 Lexington Ave)", spaces: [
-    "Room 14-250",
+  { building: "Athletics (55 Lexington Ave)", spaces: [
+    "Auxiliary Gym",
+    "Main Gym",
+    "Pool",
+    "Racquetball",
+  ]},
+  { building: "Baruch Performing Arts Center (55 Lexington Ave)", spaces: [
+    "Dance Studio",
+    "Engleman Recital Hall",
+    "Nagelberg Theatre",
+  ]},
+  { building: "Clivner Field Plaza (151 Bernard Baruch Way)", spaces: [
+    "Clivner Field Plaza",
+  ]},
+  { building: "Lawrence and Eris Field Building (17 Lexington Ave)", spaces: [
+    "Bernie West Theatre",
+    "Mason Hall - Orchestra",
+    "Mason Hall - Orchestra & Balcony",
+    "Skylight Room",
   ]},
   { building: "Student Life (55 Lexington Ave)", spaces: [
     "Multi-Purpose Room 1-107",
     "Multi-Purpose Room 1-108",
     "Multi-Purpose Room 1-109",
   ]},
-  { building: "Athletics (55 Lexington Ave)", spaces: [
-    "Main Gym",
-    "Auxiliary Gym",
-    "Pool",
-    "Racquetball",
+  { building: "Subotnick Financial Services Center (151 E 25th St)", spaces: [
+    "Development Classroom - Computer Lab",
+    "Seminar Room - Classroom",
+    "Trading Floor",
   ]},
-  { building: "135 E. 22nd Street", spaces: [
-    "Room 301",
-    "Room 308",
-    "Eli and Claire Mason Seminar Room",
-  ]},
-  { building: "Baruch Performing Arts Center (55 Lexington Ave)", spaces: [
-    "Nagelberg Theatre",
-    "Engleman Recital Hall",
-    "Dance Studio",
-  ]},
-  { building: "Lawrence and Eris Field Building (17 Lexington Ave)", spaces: [
-    "Mason Hall - Orchestra",
-    "Mason Hall - Orchestra & Balcony",
-    "Bernie West Theatre",
-    "Skylight Room",
+  { building: "Zicklin Executive Programs (55 Lexington Ave)", spaces: [
+    "Room 14-250",
   ]},
 ];
 const EVENT_TYPES_POST = ["COMMENCEMENT","ATHLETICS","SPECIAL","FIRE WATCH","STUDENT LIFE","PATROL","BPAC","OTHER"];
@@ -3682,11 +3683,13 @@ function PostEventForm({ officer, onPost, onClose }) {
           <select value={form.location} onChange={e=>update("location",e.target.value)} style={inputStyle}>
             <option value="">Select location...</option>
             {LOCATIONS.map(grp => (
-              <optgroup key={grp.building} label={grp.building}>
-                {grp.spaces.map(s => (
-                  <option key={s} value={`${grp.building} — ${s}`}>{s}</option>
-                ))}
-              </optgroup>
+              grp.spaces.length === 1
+                ? <option key={grp.spaces[0]} value={`${grp.building} — ${grp.spaces[0]}`}>{grp.building}</option>
+                : <optgroup key={grp.building} label={grp.building}>
+                    {grp.spaces.map(s => (
+                      <option key={s} value={`${grp.building} — ${s}`}>{s}</option>
+                    ))}
+                  </optgroup>
             ))}
           </select>
         </div>
@@ -4644,8 +4647,20 @@ export default function App() {
         : e
     ));
     const position = ev.waitQueue.length + 1;
-    addNotif(`You joined the waitlist for \${ev.title}. Position: #\${position}.`, "info");
-    showToast(`Added to waitlist — you're #\${position} in queue.`, "info");
+    addNotif(`You joined the waitlist for ${ev.title}. Position: #${position}.`, "info");
+    showToast(`Added to waitlist — you're #${position} in queue.`, "info");
+    // Email officer their waitlist position
+    sendEmail(officer.email, "waitlist_join", {
+      officerName: officer.name,
+      eventTitle: ev.title,
+      eventDate: ev.date,
+      eventTime: ev.time,
+      position,
+    });
+    sendPush(officer.id, "waitlist_join", {
+      title: `Waitlist — ${ev.title}`,
+      body: `You are #${position} in the queue. We'll notify you if a slot opens.`,
+    });
   };
 
   // ── Cancel a confirmed signup ──────────────────────────────────────────────
