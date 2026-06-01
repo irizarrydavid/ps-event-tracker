@@ -1297,14 +1297,6 @@ function Dashboard({ officer, signups, handleSignup, handleWaitlist, handleCance
   }}>
     Take the Tour
   </button>
-  <button id="cancel-btn" style={{
-    flex: 1, padding: "10px 0", borderRadius: 8,
-    border: "1.5px solid #DC2626", background: "#fff",
-    color: "#DC2626", fontWeight: 800, fontSize: 12,
-    letterSpacing: 0.5, cursor: "pointer",
-  }}>
-    CANCEL REQUEST
-  </button>
 </div>
 
       {/* Dynamic status banner — changes based on grace period */}
