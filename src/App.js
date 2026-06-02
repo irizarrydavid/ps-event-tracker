@@ -1124,6 +1124,7 @@ function EventCard({ event, signups, onSignup, onWaitlist, onCancel, onRequestCa
   const isFull = event.filled >= event.slots && !isSigned && !isWaited;
 
 const urgentEvent = event.filled < event.slots && event.date && (new Date(event.date) - Date.now()) / 3600000 <= 48 && (new Date(event.date) - Date.now()) / 3600000 >= -24;
+    const typeColors = {
     "COMMENCEMENT": "#7C3AED",
     "ATHLETICS":    "#0369A1",
     "SPECIAL":      "#0F766E",
