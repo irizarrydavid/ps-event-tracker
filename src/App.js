@@ -1123,8 +1123,7 @@ function EventCard({ event, signups, onSignup, onWaitlist, onCancel, onRequestCa
   const isWaited = signups.waitlisted.includes(event.id);
   const isFull = event.filled >= event.slots && !isSigned && !isWaited;
 
-const urgentEvent = (typeof event.slots === 'number' ? event.filled < event.slots : event.filled < Object.values(event.slots || {}).reduce((a,b) => a+b, 0)) && event.date && (() => { const d = new Date(event.date + 'T12:00:00'); const now = new Date(); const diffHours = (d - now) / 3600000; return diffHours >= -24 && diffHours <= 48; })();
- const typeColors = {
+const urgentEvent = event.filled < event.slots && event.date && (new Date(event.date) - Date.now()) / 3600000 <= 48 && (new Date(event.date) - Date.now()) / 3600000 >= -24;
     "COMMENCEMENT": "#7C3AED",
     "ATHLETICS":    "#0369A1",
     "SPECIAL":      "#0F766E",
