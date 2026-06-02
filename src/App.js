@@ -1277,7 +1277,8 @@ const isUrgent = (ev) => {
   if (ev.filled >= ev.slots) return false;
   if (!ev.date) return false;
   const eventDate = new Date(ev.date + " 2026");
-  const hoursUntil = (eventDate - Date.now()) / 3600000;
+  const eventDate = new Date(ev.date);
+
   return hoursUntil > 0 && hoursUntil <= URGENT_HOURS;
 };
 const urgentEvents = events.filter(ev => isUrgent(ev));
