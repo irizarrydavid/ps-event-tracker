@@ -4454,9 +4454,14 @@ export default function App() {
       const sorted = [...ev.waitQueue].sort((a, b) => a.joinedAt - b.joinedAt);
       if (sorted.length > 0) {
         const promoted = sorted[0];
-        const remaining = sorted.slice(1);
-        setEvents(prev => prev.map(e => e.id === req.eventId ? { ...e, waitQueue: remaining } : e));
-        setConfirmed(prev => [...prev, { eventId: req.eventId, signedAt: Date.now() }]);
+const remaining = sorted.slice(1);
+setEvents(prev => prev.map(e => {
+  if (e.id === req.eventId) return { ...e, waitQueue: remaining };
+  // Remove promoted officer from all other waitlists
+  return { ...e, waitQueue: e.waitQueue.filter(w => w.officerId !== promoted.officerId) };
+}));
+setConfirmed(prev => [...prev, { eventId: req.eventId, signedAt: Date.now() }]);
+
         addNotif(`Slot approved: ${req.officerName}'s cancellation approved. Next officer in queue has been confirmed for ${req.eventTitle}.`, "success");
         // Email promoted officer
         const promotedOfficer = OFFICERS.find(o => o.id === promoted.officerId);
