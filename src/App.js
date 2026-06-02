@@ -95,6 +95,12 @@ if (typeof document !== "undefined" && !document.getElementById("cuny-ps-animati
     .scale-in     { animation: scaleIn 0.28s cubic-bezier(0.34,1.56,0.64,1) forwards; }
     .toast-in     { animation: toastIn 0.3s cubic-bezier(0.34,1.2,0.64,1) forwards; }
     .bell-shake   { animation: bellShake 0.5s ease; }
+    @keyframes urgentPulse {
+  0%,100% { background-color: #FEF2F2; }
+  50%      { background-color: #FECACA; }
+}
+.urgent-pulse { animation: urgentPulse 1.5s ease infinite; }
+
     .btn-press:active { transform: scale(0.95) !important; }
     .card-hover   { transition: transform 0.18s ease, box-shadow 0.18s ease; }
     .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.10) !important; }
@@ -1264,10 +1270,20 @@ function EventCard({ event, signups, onSignup, onWaitlist, onCancel, onRequestCa
 // DASHBOARD VIEW
 // ═══════════════════════════════════════════════════════════════════════════════
 function Dashboard({ officer, signups, handleSignup, handleWaitlist, handleCancel, submitCancelRequest, isSgt, showToast, startTour, events, darkMode = false, signupModal, setSignupModal, cancelModal, setCancelModal }) {
-  const [tab, setTab] = useState("all");
+  const [tab, setTab] = useState("const URGENT_HOURS = 48;
+const isUrgent = (ev) => {
+  if (ev.filled >= ev.slots) return false;
+  if (!ev.date) return false;
+  const eventDate = new Date(ev.date + " 2026");
+  const hoursUntil = (eventDate - Date.now()) / 3600000;
+  return hoursUntil > 0 && hoursUntil <= URGENT_HOURS;
+};
+const urgentEvents = events.filter(ev => isUrgent(ev));
+
   // signupModal and cancelModal lifted to root App — received as props
   const onSignup = (id) => setSignupModal(id);
   const onWaitlist = (id) => handleWaitlist(id);
+events.sort((a, b) => isUrgent(b) - isUrgent(a));
 
   const filtered = tab === "my"
     ? events.filter(e => signups.confirmed.includes(e.id) || signups.waitlisted.includes(e.id))
