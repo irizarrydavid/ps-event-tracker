@@ -1122,6 +1122,7 @@ function EventCard({ event, signups, onSignup, onWaitlist, onCancel, onRequestCa
   const isSigned = signups.confirmed.includes(event.id);
   const isWaited = signups.waitlisted.includes(event.id);
   const isFull = event.filled >= event.slots && !isSigned && !isWaited;
+const urgentEvent = event.filled < event.slots && event.date && (new Date(event.date + " 2026") - Date.now()) / 3600000 <= 48;
 
   const typeColors = {
     "COMMENCEMENT": "#7C3AED",
@@ -1137,11 +1138,13 @@ function EventCard({ event, signups, onSignup, onWaitlist, onCancel, onRequestCa
   const isTargetCard = event.id === 1;
 
   return (
-    <div id={isTargetCard ? "event-card-1" : undefined} style={{
-      background: "#fff", borderRadius: 12, padding: "14px 14px 12px",
-      border: "1px solid #E2E8F0", marginBottom: 10,
-      boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
-    }}>
+    <div id={isTargetCard ? "event-card-1" : undefined} className={urgentEvent ? "urgent-pulse" : ""} style={{
+  background: "#fff", borderRadius: 12, padding: "14px 14px 12px",
+  border: urgentEvent ? "2px solid #DC2626" : "1px solid #E2E8F0",
+  marginBottom: 10,
+  boxShadow: urgentEvent ? "0 4px 12px rgba(220,38,38,0.2)" : "0 1px 4px rgba(0,0,0,0.05)",
+}}>
+
       {/* Top row */}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
         <div style={{ flex: 1, display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
