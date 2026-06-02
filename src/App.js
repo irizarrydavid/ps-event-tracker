@@ -1122,6 +1122,7 @@ function EventCard({ event, signups, onSignup, onWaitlist, onCancel, onRequestCa
   const isSigned = signups.confirmed.includes(event.id);
   const isWaited = signups.waitlisted.includes(event.id);
   const isFull = event.filled >= event.slots && !isSigned && !isWaited;
+  console.log("event.date raw:", event.date, "| parsed:", new Date(event.date).toString());
 const urgentEvent = event.filled < event.slots && event.date && (() => { const d = new Date(event.date); const now = new Date(); const diffHours = (d - now) / 3600000; return diffHours >= -24 && diffHours <= 48; })();
 
   const typeColors = {
