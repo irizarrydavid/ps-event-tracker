@@ -1122,7 +1122,7 @@ function EventCard({ event, signups, onSignup, onWaitlist, onCancel, onRequestCa
   const isSigned = signups.confirmed.includes(event.id);
   const isWaited = signups.waitlisted.includes(event.id);
   const isFull = event.filled >= event.slots && !isSigned && !isWaited;
-const urgentEvent = event.filled < event.slots && event.date && (new Date(event.date + " 2026") - Date.now()) / 3600000 <= 48;
+const urgentEvent = event.filled < event.slots && event.date && (() => { const d = new Date(event.date.includes("-") ? event.date : event.date + " 2026"); return (d - Date.now()) / 3600000 <= 48 && (d - Date.now()) / 3600000 > 0; })();
 
   const typeColors = {
     "COMMENCEMENT": "#7C3AED",
