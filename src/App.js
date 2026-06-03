@@ -1361,7 +1361,7 @@ function Dashboard({ officer, signups, handleSignup, handleWaitlist, handleCance
             <span style={{ fontSize: 32, fontWeight: 900, color: "#10B981" }}>
               {signups.confirmed.length}
             </span>
-            <span style={{ fontSize: 12, color: "#1D4ED8", fontWeight: 600, cursor: "pointer" }}>Check</span>
+            <span onClick={() => setTab("my")} style={{ fontSize: 12, color: "#1D4ED8", fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}>Check</span>
           </div>
           <div style={{ fontSize: 12, color: "#64748B" }}>Auto-approved slots</div>
         </div>
@@ -1377,7 +1377,7 @@ function Dashboard({ officer, signups, handleSignup, handleWaitlist, handleCance
             <span style={{ fontSize: 32, fontWeight: 900, color: "#7C3AED" }}>
               {signups.waitlisted.length}
             </span>
-            <span style={{ fontSize: 12, color: "#64748B", fontWeight: 600, cursor: "pointer" }}>List</span>
+            <span onClick={() => setTab("my")} style={{ fontSize: 12, color: "#7C3AED", fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}>List</span>
           </div>
           <div style={{ fontSize: 12, color: "#64748B" }}>In queue</div>
         </div>
