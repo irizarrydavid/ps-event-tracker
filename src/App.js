@@ -1221,7 +1221,7 @@ function EventCard({ event, signups, onSignup, onWaitlist, onCancel, onRequestCa
                 flex: 1, padding: "9px 0", borderRadius: 8, border: "1.5px solid #EF4444",
                 background: "#fff", color: "#EF4444", fontWeight: 700, fontSize: 13, cursor: "pointer",
               }}>Cancel Signup</button>
-            : <button onClick={() => onRequestCancel && onRequestCancel(event.id, "Personal request", "cancel")} style={{
+            : <button onClick={() => setCancelModal({ eventId: event.id, type: "cancel" })} style={{
                 flex: 1, padding: "9px 0", borderRadius: 8, border: "1.5px solid #F59E0B",
                 background: "#fff", color: "#D97706", fontWeight: 700, fontSize: 13, cursor: "pointer",
               }}>Request Cancel</button>
@@ -1263,12 +1263,17 @@ function EventCard({ event, signups, onSignup, onWaitlist, onCancel, onRequestCa
 // ═══════════════════════════════════════════════════════════════════════════════
 function Dashboard({ officer, signups, handleSignup, handleWaitlist, handleCancel, submitCancelRequest, isSgt, showToast, startTour, events, darkMode = false, signupModal, setSignupModal, cancelModal, setCancelModal }) {
   const [tab, setTab] = useState("all");
+  const [myFilter, setMyFilter] = useState("all"); // "all" | "confirmed" | "waitlisted"
   // signupModal and cancelModal lifted to root App — received as props
   const onSignup = (id) => setSignupModal(id);
   const onWaitlist = (id) => handleWaitlist(id);
 
   const filtered = tab === "my"
-    ? events.filter(e => signups.confirmed.includes(e.id) || signups.waitlisted.includes(e.id))
+    ? events.filter(e => {
+        if (myFilter === "confirmed") return signups.confirmed.includes(e.id);
+        if (myFilter === "waitlisted") return signups.waitlisted.includes(e.id);
+        return signups.confirmed.includes(e.id) || signups.waitlisted.includes(e.id);
+      })
     : tab === "open"
     ? events.filter(e => e.filled < e.slots && !signups.confirmed.includes(e.id))
     : events;
@@ -1294,14 +1299,6 @@ function Dashboard({ officer, signups, handleSignup, handleWaitlist, handleCance
           color: "#1D4ED8", fontWeight: 700, fontSize: 13, cursor: "pointer",
         }}>
           Take the Tour
-        </button>
-        <button id="cancel-btn" style={{
-          flex: 1, padding: "10px 0", borderRadius: 8,
-          border: "1.5px solid #DC2626", background: "#fff",
-          color: "#DC2626", fontWeight: 800, fontSize: 12,
-          letterSpacing: 0.5, cursor: "pointer",
-        }}>
-          CANCEL REQUEST
         </button>
       </div>
 
@@ -1361,7 +1358,7 @@ function Dashboard({ officer, signups, handleSignup, handleWaitlist, handleCance
             <span style={{ fontSize: 32, fontWeight: 900, color: "#10B981" }}>
               {signups.confirmed.length}
             </span>
-            <span onClick={() => setTab("my")} style={{ fontSize: 12, color: "#1D4ED8", fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}>Check</span>
+            <span onClick={() => { setTab("my"); setMyFilter("confirmed"); }} style={{ fontSize: 12, color: "#1D4ED8", fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}>Check</span>
           </div>
           <div style={{ fontSize: 12, color: "#64748B" }}>Auto-approved slots</div>
         </div>
@@ -1377,7 +1374,7 @@ function Dashboard({ officer, signups, handleSignup, handleWaitlist, handleCance
             <span style={{ fontSize: 32, fontWeight: 900, color: "#7C3AED" }}>
               {signups.waitlisted.length}
             </span>
-            <span onClick={() => setTab("my")} style={{ fontSize: 12, color: "#7C3AED", fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}>List</span>
+            <span onClick={() => { setTab("my"); setMyFilter("waitlisted"); }} style={{ fontSize: 12, color: "#7C3AED", fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}>List</span>
           </div>
           <div style={{ fontSize: 12, color: "#64748B" }}>In queue</div>
         </div>
@@ -1388,7 +1385,7 @@ function Dashboard({ officer, signups, handleSignup, handleWaitlist, handleCance
         display: "flex", gap: 0, borderBottom: "2px solid #E2E8F0", marginBottom: 14,
       }}>
         {[["All Events","all"],["Open Slots","open"],["My Sign-ups","my"]].map(([label, value]) => (
-          <button key={value} onClick={() => setTab(value)} style={{
+          <button key={value} onClick={() => { setTab(value); if (value !== "my") setMyFilter("all"); }} style={{
             flex: 1, padding: "10px 0", border: "none",
             background: "none", fontWeight: 700, fontSize: 13, cursor: "pointer",
             color: tab === value ? "#1D4ED8" : "#94A3B8",
