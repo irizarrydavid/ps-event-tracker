@@ -88,7 +88,18 @@ if (typeof document !== "undefined" && !document.getElementById("cuny-ps-animati
     @keyframes pulse {
       0%,100% { transform: scale(1); }
       50%      { transform: scale(1.05); }
+    }   
+     @keyframes wave {
+      0%   { transform: rotate(0deg); }
+      10%  { transform: rotate(14deg); }
+      20%  { transform: rotate(-8deg); }
+      30%  { transform: rotate(14deg); }
+      40%  { transform: rotate(-4deg); }
+      50%  { transform: rotate(10deg); }
+      60%  { transform: rotate(0deg); }
+      100% { transform: rotate(0deg); }
     }
+
     .slide-up-in  { animation: slideUpIn 0.32s cubic-bezier(0.32,0.72,0,1) forwards; }
     .slide-down-in { animation: slideDownIn 0.32s cubic-bezier(0.32,0.72,0,1) forwards; }
     .fade-in      { animation: fadeIn 0.28s ease forwards; }
