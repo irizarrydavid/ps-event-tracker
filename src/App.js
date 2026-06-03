@@ -2564,7 +2564,7 @@ function FirstLoginPrompt({ officer, onStartTour, onSkip }) {
         fontFamily: "'DM Sans', system-ui, sans-serif",
         textAlign: "center",
       }}>
-        <div style={{ fontSize: 40, marginBottom: 12 }}>👋</div>
+        <span style={{ fontSize: 40, display: "inline-block", transformOrigin: "70% 70%", animation: "wave 2s ease-in-out 1", marginBottom: 12 }}>👋</span>
         <div style={{ fontSize: 11, fontWeight: 800, color: "#94A3B8", letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>
           WELCOME ABOARD
         </div>
