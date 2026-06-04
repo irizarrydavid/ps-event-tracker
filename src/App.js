@@ -4871,6 +4871,7 @@ export default function App() {
     <div style={{ minHeight: "100vh", background: appBg, fontFamily: DS.fontSans, maxWidth: 430, margin: "0 auto", position: "relative",
     position: "relative",
     paddingTop: "env(safe-area-inset-top, 0px)",
+    }}>
       <TopBar
         title={navTitles[nav] || "Dashboard"}
         officer={officer}
