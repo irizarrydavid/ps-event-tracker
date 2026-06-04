@@ -4868,7 +4868,9 @@ export default function App() {
   const border  = darkMode ? "#334155" : "#E2E8F0";
 
   return (
-    <div style={{ minHeight: "100vh", background: appBg, fontFamily: "'DM Sans', system-ui, sans-serif", maxWidth: 430, margin: "0 auto", position: "relative", transition: "background 0.3s ease" }}>
+    <div style={{ minHeight: "100vh", background: appBg, fontFamily: DS.fontSans, maxWidth: 430, margin: "0 auto", position: "relative",
+    position: "relative",
+    paddingTop: "env(safe-area-inset-top, 0px)",
       <TopBar
         title={navTitles[nav] || "Dashboard"}
         officer={officer}
