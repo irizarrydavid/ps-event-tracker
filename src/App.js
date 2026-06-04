@@ -737,6 +737,7 @@ function GuidedTour({ steps, roleColor, onClose, currentNav, setNav, openAIKey, 
   useEffect(() => {
     return () => {
       stopAll();
+      clearTimeout(muteTimerRef.current);
       // Revoke cached object URLs
       Object.values(cacheRef.current).forEach(url => URL.revokeObjectURL(url));
     };
@@ -764,13 +765,15 @@ function GuidedTour({ steps, roleColor, onClose, currentNav, setNav, openAIKey, 
   }, [stepIdx]);
 
   // ── Mute toggle ──────────────────────────────────────────────────────────
+  const muteTimerRef = useRef(null);
   const toggleMute = () => {
     if (!muted) {
       stopAll();
+      clearTimeout(muteTimerRef.current);
       setMuted(true);
     } else {
       setMuted(false);
-      setTimeout(() => speak(`${clean(step.title)}. ${clean(step.body)}`), 100);
+      muteTimerRef.current = setTimeout(() => speak(`${clean(step.title)}. ${clean(step.body)}`), 100);
     }
   };
 
@@ -1437,7 +1440,7 @@ function Schedule({ signups, events, darkMode = false }) {
   const getEventDay = (dateStr) => {
     if (!dateStr) return null;
     const match = dateStr.match(/(\d+)/);
-    return match ? parseInt(match[1]) : null;
+    return match ? parseInt(match[1], 10) : null;
   };
 
   const monthName = monthNames[currentMonth.month];
@@ -3323,7 +3326,7 @@ function SupervisorDashboard({ officer, events, setEvents, confirmed, setConfirm
                   <div style={{ height:"100%", borderRadius:99, width:`${Math.min(100,(ev.filled/ev.slots)*100)}%`, background: ev.filled>=ev.slots ? "#10B981" : "#1D4ED8" }} />
                 </div>
                 {/* Waitlist count */}
-                {ev.waitQueue?.length > 0 && (
+                {(ev.waitQueue?.length ?? 0) > 0 && (
                   <div style={{ fontSize:11, color:"#7C3AED", fontWeight:600 }}>
                     {ev.waitQueue.length} officer{ev.waitQueue.length > 1 ? "s" : ""} on waitlist
                   </div>
