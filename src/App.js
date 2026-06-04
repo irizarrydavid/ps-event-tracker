@@ -746,11 +746,12 @@ function GuidedTour({ steps, roleColor, onClose, currentNav, setNav, openAIKey, 
   useEffect(() => {
     setConfirming(false);
     if (step.nav && step.nav !== currentNav) setNav(step.nav);
+    let t1, t2;
     if (step.target) {
       const el = document.getElementById(step.target);
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
-        setTimeout(() => {
+        t1 = setTimeout(() => {
           const rect = el.getBoundingClientRect();
           setHighlight({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
         }, 300);
@@ -758,7 +759,8 @@ function GuidedTour({ steps, roleColor, onClose, currentNav, setNav, openAIKey, 
     } else {
       setHighlight(null);
     }
-    setTimeout(() => speak(`${clean(step.title)}. ${clean(step.body)}`), 400);
+    t2 = setTimeout(() => speak(`${clean(step.title)}. ${clean(step.body)}`), 400);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [stepIdx]);
 
   // ── Mute toggle ──────────────────────────────────────────────────────────
@@ -1070,10 +1072,10 @@ function TopBar({ title, officer, menuOpen, setMenuOpen, nav, setNav, notifCount
           fontSize: 10, fontWeight: 900,
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
-          {officer?.name?.split(" ").map(n=>n[0]).join("")}
+          {officer.name.split(" ").map(n=>n[0]).join("")}
         </div>
         <span style={{ color: "#fff", fontSize: 13, fontWeight: 700 }}>
-          {officer?.name?.split(" ")[0]}
+          {officer.name.split(" ")[0]}
         </span>
       </div>
 
@@ -1122,7 +1124,7 @@ function TopBar({ title, officer, menuOpen, setMenuOpen, nav, setNav, notifCount
 // ═══════════════════════════════════════════════════════════════════════════════
 // EVENT CARD
 // ═══════════════════════════════════════════════════════════════════════════════
-function EventCard({ event, signups, onSignup, onWaitlist, onCancel, onRequestCancel, isSgt, queuePos, graceLocked, graceTimeLeft }) {
+function EventCard({ event, signups, onSignup, onWaitlist, onCancel, onRequestCancel, setCancelModal, isSgt, queuePos, graceLocked, graceTimeLeft }) {
   const isSigned = signups.confirmed.includes(event.id);
   const isWaited = signups.waitlisted.includes(event.id);
   const isFull = event.filled >= event.slots && !isSigned && !isWaited;
@@ -1297,7 +1299,7 @@ function Dashboard({ officer, signups, handleSignup, handleWaitlist, handleCance
         OFFICER PORTAL
       </div>
       <div style={{ fontSize: 24, fontWeight: 900, color: "#0F172A", marginBottom: 2 }}>
-        Welcome, {officer?.name?.split(" ")[0]}
+        Welcome, {officer.name.split(" ")[0]}
       </div>
       <div style={{ fontSize: 13, color: "#64748B", marginBottom: 14 }}>
         Campus Peace Officer · Bernard Baruch College
@@ -1955,7 +1957,7 @@ function Profile({ officer }) {
         {/* Avatar + name + badges */}
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
           <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#1D4ED8", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 900, color: "#fff", flexShrink: 0 }}>
-            {officer?.name?.split(" ").map(n=>n[0]).join("")}
+            {officer.name.split(" ").map(n=>n[0]).join("")}
           </div>
           <div>
             <div style={{ fontSize: 20, fontWeight: 900 }}>{officer.name}</div>
@@ -2581,7 +2583,7 @@ function FirstLoginPrompt({ officer, onStartTour, onSkip }) {
           WELCOME ABOARD
         </div>
         <div style={{ fontSize: 20, fontWeight: 900, color: "#0F172A", marginBottom: 10 }}>
-          Hi, {officer?.name?.split(" ")[0]}!
+          Hi, {officer.name.split(" ")[0]}!
         </div>
         <div style={{ fontSize: 14, color: "#475569", lineHeight: 1.6, marginBottom: 24 }}>
           Looks like it's your first time here. Would you like a quick guided tour of the Event Management Tracker?
@@ -2699,7 +2701,7 @@ function SignupConfirmModal({ event, officer, onConfirm, onClose }) {
             color: "#fff", fontWeight: 800, fontSize: 12, flexShrink: 0,
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>
-            {officer?.name?.split(" ").map(n => n[0]).join("")}
+            {officer.name.split(" ").map(n => n[0]).join("")}
           </div>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>{officer.name}</div>
@@ -2868,7 +2870,7 @@ function SgtApprovals({ cancelRequests, onApprove, onDeny, officer, darkMode = f
         Approvals Queue
       </div>
       <div style={{ fontSize: 13, color: "#64748B", marginBottom: 16 }}>
-        Welcome, {officer?.name?.split(" ")[0]} · {cancelRequests.filter(r => r.status === "pending").length} pending
+        Welcome, {officer.name.split(" ")[0]} · {cancelRequests.filter(r => r.status === "pending").length} pending
       </div>
 
       {/* Stats row */}
@@ -3206,11 +3208,11 @@ function SupervisorDashboard({ officer, events, setEvents, confirmed, setConfirm
     { id:3, actor:"Marcus Brown", action:"Override issued — Lisa Chen — Alumni Gala", timestamp: Date.now()-3600000*2 },
   ]);
 
-  const canOverride = RANK_ORDER[officer?.rank] >= 5;
-  const canPostFireWatch = [2,4,5,6].includes(RANK_ORDER[officer?.rank]);
+  const canOverride = RANK_ORDER[officer.rank] >= 5;
+  const canPostFireWatch = [2,4,5,6].includes(RANK_ORDER[officer.rank]);
 
   const logAction = (action) => {
-    setAuditLog(prev => [{ id: Date.now(), actor: officer?.name, action, timestamp: Date.now() }, ...prev]);
+    setAuditLog(prev => [{ id: Date.now(), actor: officer.name, action, timestamp: Date.now() }, ...prev]);
   };
 
   const formatTime = (ts) => {
@@ -3346,7 +3348,7 @@ function SupervisorDashboard({ officer, events, setEvents, confirmed, setConfirm
                       const reason = prompt("Override reason (required for audit log):");
                       if (name && reason) {
                         logAction(`OVERRIDE: Assigned ${name} to ${ev.title} — Reason: ${reason}`);
-                        addNotif(`Override issued by ${officer?.name}: ${name} assigned to ${ev.title}.`, "warn");
+                        addNotif(`Override issued by ${officer.name}: ${name} assigned to ${ev.title}.`, "warn");
                         showToast("Override logged and applied.", "info");
                       }
                     }} style={{ padding:"7px 12px", borderRadius:6, border:"1.5px solid #7C3AED", background:"#fff", color:"#7C3AED", fontWeight:700, fontSize:11, cursor:"pointer" }}>
@@ -4141,7 +4143,7 @@ function AnalyticsDashboard({ events, confirmed, cancelRequests, officers, darkM
           return (
             <div key={off.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: i < officers.length - 1 ? `1px solid ${bdr}` : "none" }}>
               <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#1D4ED8", color: "#fff", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                {off.name.split(" ").map(n => n[0]).join("")}
+                {off?.name?.split(" ").map(n => n[0]).join("") ?? "?"}
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: text }}>{off.name}</div>
@@ -4376,7 +4378,7 @@ function DaysOffSettings({ officer }) {
           const isOff = daysOff.includes(idx);
           return (
             <button key={day} onClick={() => toggleDay(idx)} style={{
-              padding:"8px 12px", borderRadius:8, border:"none",
+              padding:"8px 12px", borderRadius:8,
               background: isOff ? "#FEF2F2" : "#F0FDF4",
               color: isOff ? "#DC2626" : "#059669",
               fontSize:12, fontWeight:700, cursor:"pointer",
@@ -4444,8 +4446,8 @@ export default function App() {
     const req = {
       id: Date.now(),
       officerId: officer.id,
-      officerName: officer?.name,
-      badge: officer?.badge,
+      officerName: officer.name,
+      badge: officer.badge,
       eventId,
       eventTitle: ev.title,
       reason,
@@ -4705,7 +4707,7 @@ export default function App() {
     showToast(`Added to waitlist — you're #${position} in queue.`, "info");
     // Email officer their waitlist position
     sendEmail(officer.email, "waitlist_join", {
-      officerName: officer?.name,
+      officerName: officer.name,
       eventTitle: ev.title,
       eventDate: ev.date,
       eventTime: ev.time,
@@ -4731,9 +4733,9 @@ export default function App() {
       setEvents(prev => prev.map(e =>
         e.id === eventId ? { ...e, waitQueue: remaining } : e
       ));
-      setConfirmed(prev => [...prev, { eventId, signedAt: Date.now() }]);
+      setConfirmed(prev => [...prev, { eventId, officerId: promoted.officerId, signedAt: Date.now() }]);
       addNotif(
-        `A slot opened in \${ev.title}! You've been automatically confirmed from the waitlist.`,
+        `A slot opened in ${ev.title}! You've been automatically confirmed from the waitlist.`,
         "success"
       );
       showToast(`Slot released — next officer in queue has been promoted.`, "info");
