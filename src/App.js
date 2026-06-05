@@ -1747,7 +1747,7 @@ function FAQ({ setNav, darkMode = false }) {
       a:"Fire Watch shifts appear as individual event cards on your Dashboard — each shift (overnight, day, evening) is separate. Tap <b>Sign Up</b> on the specific shift you want. You choose exactly which shift to work — you are not automatically assigned a random slot.",
       cta:{ label:"Browse Events", nav:"dashboard" }},
     { id:"fw2", cat:"firewatch", icon:"🔥", q:"Where is Fire Watch located?",
-      a:"All Fire Watch assignments are located at the <b>VC Building — 17 Lexington Ave</b>. Report to the main security desk upon arrival.",
+      a:"All Fire Watch assignments are located at the <b>VC Building — 55 Lexington Ave</b>. Report to the main security desk upon arrival.",
       cta:null },
     { id:"fw3", cat:"firewatch", icon:"🔥", q:"Can I sign up for multiple Fire Watch shifts?",
       a:"During the <b>72-hour grace period</b> after posting, you may only sign up for one shift. After the grace period expires you may sign up for additional shifts if slots are still available.",
