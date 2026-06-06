@@ -4536,8 +4536,8 @@ export default function App() {
     const req = cancelRequests.find(r => r.id === reqId);
     if (!req) return;
     setCancelRequests(prev => prev.map(r => r.id === reqId ? { ...r, status: "approved" } : r));
-    setConfirmed(prev => prev.filter(c => !(c.eventId === req.eventId && req.officerId === officer?.id)));
-    const ev = events.find(e => e.id === req.eventId);
+        setConfirmed(prev => prev.filter(c => !(c.eventId === req.eventId && c.officerId === req.officerId)));
+  const ev = events.find(e => e.id === req.eventId);
     const requestingOfficer = OFFICERS.find(o => o.id === req.officerId);
     if (ev) {
       const sorted = [...ev.waitQueue].sort((a, b) => a.joinedAt - b.joinedAt);
