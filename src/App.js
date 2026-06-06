@@ -2197,12 +2197,6 @@ const DEMO_ACCOUNTS = [
 // ═══════════════════════════════════════════════════════════════════════════════
 // LOGIN STEP 1 — CREDENTIALS
 // ═══════════════════════════════════════════════════════════════════════════════
-// ═══════════════════════════════════════════════════════════════════════════
-// REPLACEMENT: LoginCredentials component
-// INSTRUCTIONS: In your App.js, find the function named LoginCredentials
-// and replace the ENTIRE function (from "function LoginCredentials" down to
-// its closing "}" brace) with this code.
-// ═══════════════════════════════════════════════════════════════════════════
 
 function LoginCredentials({ onNext }) {
   const [badge, setBadge]       = useState("");
