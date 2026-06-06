@@ -3865,7 +3865,7 @@ function PostEventForm({ officer, onPost, onClose }) {
         {/* Grand total */}
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 12px", background:"#EFF6FF", borderRadius:8, marginTop:8, border:"1px solid #BFDBFE" }}>
           <span style={{ fontSize:12, fontWeight:700, color:"#1D4ED8" }}>Total Slots</span>
-          <span style={{ fontSize:16, fontWeight:900, color:"#1D4ED8" }}>{totalSlots + (form.armedSlots||0)}</span>
+                    <span style={{ fontSize:16, fontWeight:900, color:"#1D4ED8" }}>{totalSlots}</span>
         </div>
       </div>
 
