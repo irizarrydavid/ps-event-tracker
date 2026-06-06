@@ -765,7 +765,6 @@ function GuidedTour({ steps, roleColor, onClose, currentNav, setNav, openAIKey, 
   }, [stepIdx]);
 
   // ── Mute toggle ──────────────────────────────────────────────────────────
-  const muteTimerRef = useRef(null);
   const toggleMute = () => {
     if (!muted) {
       stopAll();
