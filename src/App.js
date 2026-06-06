@@ -733,6 +733,8 @@ function GuidedTour({ steps, roleColor, onClose, currentNav, setNav, openAIKey, 
     speakOpenAI(text);
   };
 
+  const muteTimerRef = useRef(null);
+
   // ── Cleanup on unmount ───────────────────────────────────────────────────
   useEffect(() => {
     return () => {
