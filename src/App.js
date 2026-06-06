@@ -925,7 +925,7 @@ function Toast({ msg, type, onDismiss }) {
   useEffect(() => {
     const t = setTimeout(onDismiss, 10000);
     return () => clearTimeout(t);
-  }, []);
+  }, [onDismiss]);
   return (
     <div style={{
       position: "fixed", bottom: 24, right: 16, zIndex: 9998,
@@ -3281,8 +3281,8 @@ function SupervisorDashboard({ officer, events, setEvents, confirmed, setConfirm
     { id:3, actor:"Marcus Brown", action:"Override issued — Lisa Chen — Alumni Gala", timestamp: Date.now()-3600000*2 },
   ]);
 
-    const canOverride = RANK_LEVEL[officer.rank] >= 5;
-  const canPostFireWatch = [2,4,5,6].includes(RANK_LEVEL[officer.rank]);
+  const canOverride = RANK_ORDER[officer.rank] >= 5;
+  const canPostFireWatch = [2,4,5,6].includes(RANK_ORDER[officer.rank]);
 
   const logAction = (action) => {
     setAuditLog(prev => [{ id: Date.now(), actor: officer.name, action, timestamp: Date.now() }, ...prev]);
@@ -3321,13 +3321,13 @@ function SupervisorDashboard({ officer, events, setEvents, confirmed, setConfirm
       <div style={{ display:"flex", gap:10, marginBottom:16, flexWrap:"wrap" }}>
         <button onClick={() => { setShowPostForm(s => !s); setShowFireWatchForm(false); }} style={{
           flex:1, padding:"11px 0", borderRadius:8, border:"none",
-          background: showPostForm ? "#1D4ED8" : "#1D4ED8",
+          background: showPostForm ? "#1E40AF" : "#1D4ED8",
           color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer",
         }}>+ Post New Event</button>
         {canPostFireWatch && (
           <button onClick={() => { setShowFireWatchForm(s => !s); setShowPostForm(false); }} style={{
             flex:1, padding:"11px 0", borderRadius:8, border:"none",
-            background: showFireWatchForm ? "#DC2626" : "#DC2626",
+            background: showFireWatchForm ? "#B91C1C" : "#DC2626",
             color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer",
           }}>+ Post Fire Watch</button>
         )}
@@ -3866,7 +3866,7 @@ function PostEventForm({ officer, onPost, onClose }) {
         {/* Grand total */}
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 12px", background:"#EFF6FF", borderRadius:8, marginTop:8, border:"1px solid #BFDBFE" }}>
           <span style={{ fontSize:12, fontWeight:700, color:"#1D4ED8" }}>Total Slots</span>
-                    <span style={{ fontSize:16, fontWeight:900, color:"#1D4ED8" }}>{totalSlots}</span>
+          <span style={{ fontSize:16, fontWeight:900, color:"#1D4ED8" }}>{totalSlots + (form.armedSlots||0)}</span>
         </div>
       </div>
 
@@ -4537,8 +4537,8 @@ export default function App() {
     const req = cancelRequests.find(r => r.id === reqId);
     if (!req) return;
     setCancelRequests(prev => prev.map(r => r.id === reqId ? { ...r, status: "approved" } : r));
-        setConfirmed(prev => prev.filter(c => !(c.eventId === req.eventId && c.officerId === req.officerId)));
-  const ev = events.find(e => e.id === req.eventId);
+    setConfirmed(prev => prev.filter(c => !(c.eventId === req.eventId && req.officerId === officer?.id)));
+    const ev = events.find(e => e.id === req.eventId);
     const requestingOfficer = OFFICERS.find(o => o.id === req.officerId);
     if (ev) {
       const sorted = [...ev.waitQueue].sort((a, b) => a.joinedAt - b.joinedAt);
@@ -4604,7 +4604,7 @@ export default function App() {
       e.id === eventId ? { ...e, date: newDate, time: newTime, status: "OPEN", postedAt: Date.now() } : e
     ));
     // Notify all confirmed officers first per memo policy
-    const confirmedOfficerIds = confirmed.filter(c => c.eventId === eventId).map(c => c.eventId);
+    const confirmedOfficerIds = confirmed.filter(c => c.eventId === eventId).map(c => c.officerId);
     OFFICERS.forEach(off => {
       sendEmail("event_rescheduled", off, { ...ev, date: newDate, time: newTime });
     });
@@ -4797,7 +4797,7 @@ export default function App() {
   const handleCancel = (eventId) => {
     const ev = events.find(e => e.id === eventId);
     if (!ev) return;
-        setConfirmed(prev => prev.filter(c => !(c.eventId === eventId && c.officerId === officer.id)));
+    setConfirmed(prev => prev.filter(c => c.eventId !== eventId));
     // Sort waitQueue by joinedAt ascending (earliest = first)
     const sorted = [...ev.waitQueue].sort((a, b) => a.joinedAt - b.joinedAt);
     if (sorted.length > 0) {
