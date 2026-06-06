@@ -4796,7 +4796,7 @@ export default function App() {
   const handleCancel = (eventId) => {
     const ev = events.find(e => e.id === eventId);
     if (!ev) return;
-    setConfirmed(prev => prev.filter(c => c.eventId !== eventId));
+        setConfirmed(prev => prev.filter(c => !(c.eventId === eventId && c.officerId === officer.id)));
     // Sort waitQueue by joinedAt ascending (earliest = first)
     const sorted = [...ev.waitQueue].sort((a, b) => a.joinedAt - b.joinedAt);
     if (sorted.length > 0) {
