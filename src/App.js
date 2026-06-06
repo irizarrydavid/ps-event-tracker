@@ -3280,8 +3280,8 @@ function SupervisorDashboard({ officer, events, setEvents, confirmed, setConfirm
     { id:3, actor:"Marcus Brown", action:"Override issued — Lisa Chen — Alumni Gala", timestamp: Date.now()-3600000*2 },
   ]);
 
-  const canOverride = RANK_ORDER[officer.rank] >= 5;
-  const canPostFireWatch = [2,4,5,6].includes(RANK_ORDER[officer.rank]);
+    const canOverride = RANK_LEVEL[officer.rank] >= 5;
+  const canPostFireWatch = [2,4,5,6].includes(RANK_LEVEL[officer.rank]);
 
   const logAction = (action) => {
     setAuditLog(prev => [{ id: Date.now(), actor: officer.name, action, timestamp: Date.now() }, ...prev]);
