@@ -2205,7 +2205,7 @@ export function LoginCredentials({ onNext }) {
   const [error, setError]       = useState("");
   const [showPass, setShowPass] = useState(false);
 
-  const BG_IMAGE = null;
+  const SHIELD_LOGO = SHIELD_B64;
   const handleContinue = () => {
     setError("");
     const officer = OFFICERS.find(o => o.badge === badge.toUpperCase().trim());
