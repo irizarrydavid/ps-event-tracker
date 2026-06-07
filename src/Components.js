@@ -2227,7 +2227,7 @@ export function LoginCredentials({ onNext }) {
         position: "relative",
         width: "100%",
         minHeight: 340,
-        background: "linear-gradient(160deg, #0a1628 0%, #1a2f5e 50%, #0d1f3c 
+       background: "linear-gradient(160deg, #0a1628 0%, #1a2f5e 50%, #0d1f3c 100%)",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
