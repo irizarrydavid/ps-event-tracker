@@ -2227,10 +2227,7 @@ export function LoginCredentials({ onNext }) {
         position: "relative",
         width: "100%",
         minHeight: 340,
-        backgroundImage: `url(${BG_IMAGE})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center 40%",
-        backgroundRepeat: "no-repeat",
+        background: "linear-gradient(160deg, #0a1628 0%, #1a2f5e 50%, #0d1f3c 
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
